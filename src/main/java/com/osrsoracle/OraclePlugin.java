@@ -14,6 +14,7 @@ import net.runelite.api.EquipmentInventorySlot;
 import net.runelite.api.Item;
 import net.runelite.api.ItemContainer;
 import net.runelite.api.Varbits;
+import net.runelite.api.VarClientStr;
 import net.runelite.api.MenuAction;
 import net.runelite.api.SpriteID;
 import net.runelite.api.FontID;
@@ -71,37 +72,45 @@ public class OraclePlugin extends Plugin
 
 	private final HttpClient httpClient = HttpClient.newHttpClient();
 
+    private static final long MIN_UPLOAD_INTERVAL_MS = 1000L;
+
+    private static final int[] CA_TASK_COMPLETION_VARPS = {
+        VarPlayerID.CA_TASK_COMPLETED_0,
+        VarPlayerID.CA_TASK_COMPLETED_1,
+        VarPlayerID.CA_TASK_COMPLETED_2,
+        VarPlayerID.CA_TASK_COMPLETED_3,
+        VarPlayerID.CA_TASK_COMPLETED_4,
+        VarPlayerID.CA_TASK_COMPLETED_5,
+        VarPlayerID.CA_TASK_COMPLETED_6,
+        VarPlayerID.CA_TASK_COMPLETED_7,
+        VarPlayerID.CA_TASK_COMPLETED_8,
+        VarPlayerID.CA_TASK_COMPLETED_9,
+        VarPlayerID.CA_TASK_COMPLETED_10,
+        VarPlayerID.CA_TASK_COMPLETED_11,
+        VarPlayerID.CA_TASK_COMPLETED_12,
+        VarPlayerID.CA_TASK_COMPLETED_13,
+        VarPlayerID.CA_TASK_COMPLETED_14,
+        VarPlayerID.CA_TASK_COMPLETED_15,
+        VarPlayerID.CA_TASK_COMPLETED_16,
+        VarPlayerID.CA_TASK_COMPLETED_17,
+        VarPlayerID.CA_TASK_COMPLETED_18,
+        VarPlayerID.CA_TASK_COMPLETED_19,
+        VarPlayerID.CA_TASK_COMPLETED_20
+    };
+
 	private long lastUploadTime = 0;
+	private String pendingSnapshotReason = null;
 
 	private Item[] cachedBankItems = null;
 
 	private Item[] cachedSeedVaultItems = null;
 
 
-	/*
-	 * PUSH-TRIGGER BASELINE
-	 *
-	 * These values are initialized once after login. From then on we only
-	 * send an immediate snapshot when one of the explicitly approved
-	 * progression events occurs.
-	 */
-	private boolean pendingLoginPush = false;
-	private GameState previousGameState = GameState.UNKNOWN;
-	private boolean pushTriggerBaselineReady = false;
+	private String entryIntentReason = null;
+	private String pendingEntrySnapshotReason = null;
 
-	private final Map<Skill, Integer> lastKnownLevels =
-			new LinkedHashMap<>();
 
-	private final Map<Quest, Boolean> lastKnownQuestFinished =
-			new LinkedHashMap<>();
-
-	private int lastKnownCaEasy = 0;
-	private int lastKnownCaMedium = 0;
-	private int lastKnownCaHard = 0;
-	private int lastKnownCaElite = 0;
-	private int lastKnownCaMaster = 0;
-	private int lastKnownCaGrandmaster = 0;
-
+	private boolean collectionNotificationStarted = false;
 
 	private long lastCollectionCaptureTime = 0;
 	private final Map<String, String> cachedCollectionLogPages =
@@ -202,35 +211,45 @@ public class OraclePlugin extends Plugin
 				gameStateChanged.getGameState();
 
 		/*
-		 * Only arm the LOGIN push after a genuine login/world-hop transition.
+		 * Preserve the reason we are entering the game across LOADING.
 		 *
-		 * Teleports and region changes commonly do:
+		 * A real login normally does:
+		 * LOGIN_SCREEN -> LOGGING_IN -> LOADING -> LOGGED_IN
+		 *
+		 * A world hop normally does:
+		 * HOPPING -> LOADING -> LOGGED_IN
+		 *
+		 * Ordinary teleports and region changes can also do:
 		 * LOGGED_IN -> LOADING -> LOGGED_IN
 		 *
-		 * so LOADING -> LOGGED_IN must not count as a login.
+		 * so LOADING by itself must never arm an entry snapshot.
 		 */
-		if (
-				newState == GameState.LOGGED_IN &&
-						(
-								previousGameState == GameState.LOGIN_SCREEN ||
-										previousGameState == GameState.LOGGING_IN ||
-										previousGameState == GameState.HOPPING
-						)
-		)
+		if (newState == GameState.HOPPING)
 		{
-			pendingLoginPush = true;
-			pushTriggerBaselineReady = false;
+			entryIntentReason = "WORLD_HOP";
 		}
 		else if (
 				newState == GameState.LOGIN_SCREEN ||
-						newState == GameState.HOPPING
+						newState == GameState.LOGGING_IN
 		)
 		{
-			pendingLoginPush = false;
-			pushTriggerBaselineReady = false;
+			/*
+			 * Do not overwrite a world-hop intent if RuneLite happens to pass
+			 * through one of the login states during the hop sequence.
+			 */
+			if (!"WORLD_HOP".equals(entryIntentReason))
+			{
+				entryIntentReason = "LOGIN";
+			}
 		}
-
-		previousGameState = newState;
+		else if (
+				newState == GameState.LOGGED_IN &&
+						entryIntentReason != null
+		)
+		{
+			pendingEntrySnapshotReason = entryIntentReason;
+			entryIntentReason = null;
+		}
 	}
 
 
@@ -272,33 +291,33 @@ public class OraclePlugin extends Plugin
 		}
 
 		/*
-		 * LOGIN PUSH
+		 * RATE-LIMITED PENDING PUSH
 		 *
-		 * Initialize every progression baseline before sending the login
-		 * snapshot. That prevents existing completed quests/diaries/CAs or
-		 * current levels from being mistaken for brand-new events.
+		 * Only the newest reason is retained while the one-second window is
+		 * active. The payload itself is built here at send time so state is
+		 * always fresh rather than serialized when the event first occurred.
 		 */
-		if (pendingLoginPush)
-		{
-			initializePushTriggerBaseline();
+		flushPendingSnapshotIfReady();
 
-			pendingLoginPush = false;
-			pushTriggerBaselineReady = true;
+		/*
+		 * LOGIN / WORLD-HOP PUSH
+		 *
+		 * The state-change handler records the entry reason and waits until
+		 * RuneLite reaches LOGGED_IN. The first game tick with a valid local
+		 * player then sends the snapshot from the newly entered session/world.
+		 */
+		if (pendingEntrySnapshotReason != null)
+		{
+			String snapshotReason = pendingEntrySnapshotReason;
+			pendingEntrySnapshotReason = null;
 
 			log.info(
-					"PUSH TRIGGER: login"
+					"PUSH TRIGGER: {}",
+					snapshotReason
 			);
 
-			sendSnapshot("LOGIN");
-			lastUploadTime =
-					System.currentTimeMillis();
+			requestSnapshot(snapshotReason);
 		}
-		else if (pushTriggerBaselineReady)
-		{
-			checkProgressionPushTriggers();
-		}
-
-
 		/*
 		 * INSTANT COLLECTION LOG COMPLETION
 		 *
@@ -344,8 +363,7 @@ public class OraclePlugin extends Plugin
 			 * stored full page/item definition to rebuild our rich 124-page
 			 * Collection Log representation.
 			 */
-			sendSnapshot("CLOG_MANUAL");
-			lastUploadTime = System.currentTimeMillis();
+			requestSnapshot("CLOG_MANUAL");
 		}
 
 
@@ -358,86 +376,15 @@ public class OraclePlugin extends Plugin
 		if (now - lastUploadTime >=
 				15 * 60 * 1000)
 		{
-			sendSnapshot("HEARTBEAT");
-			lastUploadTime = now;
+			requestSnapshot("HEARTBEAT");
 		}
 	}
 
 
-
-	private void initializePushTriggerBaseline()
-	{
-		/*
-		 * LEVELS
-		 */
-		lastKnownLevels.clear();
-
-		for (Skill skill : Skill.values())
-		{
-			if (skill == Skill.OVERALL)
-			{
-				continue;
-			}
-
-			lastKnownLevels.put(
-					skill,
-					client.getRealSkillLevel(skill)
-			);
-		}
-
-
-		/*
-		 * QUESTS
-		 */
-		lastKnownQuestFinished.clear();
-
-		for (Quest quest : Quest.values())
-		{
-			lastKnownQuestFinished.put(
-					quest,
-					quest.getState(client) ==
-							QuestState.FINISHED
-			);
-		}
-
-		/*
-		 * COMBAT ACHIEVEMENTS
-		 */
-		lastKnownCaEasy =
-				client.getVarbitValue(
-						Varbits.COMBAT_TASK_EASY
-				);
-
-		lastKnownCaMedium =
-				client.getVarbitValue(
-						Varbits.COMBAT_TASK_MEDIUM
-				);
-
-		lastKnownCaHard =
-				client.getVarbitValue(
-						Varbits.COMBAT_TASK_HARD
-				);
-
-		lastKnownCaElite =
-				client.getVarbitValue(
-						Varbits.COMBAT_TASK_ELITE
-				);
-
-		lastKnownCaMaster =
-				client.getVarbitValue(
-						Varbits.COMBAT_TASK_MASTER
-				);
-
-		lastKnownCaGrandmaster =
-				client.getVarbitValue(
-						Varbits.COMBAT_TASK_GRANDMASTER
-				);
-
-
-	}
 
 	/*
-	 * LEVEL-UP PUSH
+	 * LEVEL-UP / QUEST / COLLECTION LOG PUSHES
+
 	 *
 	 * RuneLite already emits the visible level-up game message. This is more
 	 * reliable than polling XP/stat changes because the message is guaranteed
@@ -451,174 +398,176 @@ public class OraclePlugin extends Plugin
 			return;
 		}
 
+		if (
+				event.getType() != ChatMessageType.GAMEMESSAGE &&
+						event.getType() != ChatMessageType.MESBOX
+		)
+		{
+			return;
+		}
+
+		String message =
+				stripTags(
+						event.getMessage()
+				).trim();
+
+		String lowerMessage =
+				message.toLowerCase();
+
+		/*
+		 * ACHIEVEMENT DIARY COMPLETION
+		 *
+		 * Confirmed live as a MESBOX message:
+		 * "Congratulations! You have completed all of the easy tasks in the
+		 * Lumbridge & Draynor area. Speak to Hatius Cosaintus outside of
+		 * Lumbridge Castle to claim your reward."
+		 *
+		 * Only the full-tier MESBOX completion message should trigger this.
+		 * Individual diary tasks arrive as GAMEMESSAGE and do not match here.
+		 */
+		if (
+				event.getType() == ChatMessageType.MESBOX &&
+						lowerMessage.contains(
+								"you have completed all of the "
+						) &&
+						lowerMessage.contains(
+								" tasks in the "
+						) &&
+						lowerMessage.contains(
+								" area."
+						)
+		)
+		{
+			log.info(
+					"PUSH TRIGGER: Achievement Diary completed"
+			);
+
+			requestSnapshot(
+					"DIARY_COMPLETE"
+			);
+
+			return;
+		}
+
+		/*
+		 * All remaining chat triggers are intentionally limited to the same
+		 * GAMEMESSAGE path they used before the diary MESBOX fix.
+		 */
 		if (event.getType() != ChatMessageType.GAMEMESSAGE)
 		{
 			return;
 		}
 
-		String message = event.getMessage();
-
-		if (!message.startsWith("Congratulations, you've just advanced your "))
-		{
-			return;
-		}
-
-		java.util.regex.Matcher matcher =
+		/*
+		 * LEVEL UP
+		 */
+		java.util.regex.Matcher levelMatcher =
 				java.util.regex.Pattern.compile(
-						"Congratulations, you've just advanced your (.+?) level\\. You are now level (\\d+)\\."
+						"Congratulations, you've just advanced your (.+?) level[.] You are now level ([0-9]+)[.]"
 				).matcher(message);
 
-		if (!matcher.matches())
+		if (levelMatcher.matches())
 		{
+			String skillName =
+					levelMatcher.group(1);
+
+			log.info(
+					"PUSH TRIGGER: level up {}",
+					skillName
+			);
+
+			requestSnapshot(
+					"LEVEL_UP:" +
+							skillName.toUpperCase()
+			);
+
 			return;
 		}
 
-		String skillName = matcher.group(1);
+		/*
+		 * QUEST COMPLETION
+		 */
+		if (
+				message.contains(
+						"Congratulations! Quest complete!"
+				) ||
+						lowerMessage.contains(
+								"you've completed a quest"
+						)
+		)
+		{
+			log.info(
+					"PUSH TRIGGER: quest completed"
+			);
 
-		log.info(
-				"PUSH TRIGGER: level up {}",
-				skillName
-		);
+			requestSnapshot(
+					"QUEST_COMPLETED"
+			);
 
-		sendSnapshot(
-				"LEVEL_UP:" +
-						skillName.toUpperCase()
-		);
-
-		lastUploadTime =
-				System.currentTimeMillis();
-	}
-
-
-	private void checkProgressionPushTriggers()
-	{
-		List<String> pushReasons =
-				new ArrayList<>();
+			return;
+		}
 
 		/*
-		 * COMBAT ACHIEVEMENT COMPLETED
+		 * COMBAT ACHIEVEMENT COMPLETION
 		 *
-		 * The six tier counters increase when a CA is completed. Comparing
-		 * those counters is far cheaper than scanning every CA task each tick.
+		 * Trigger from the player's local game message rather than tier
+		 * varbit counters. The full Combat Achievement state is already
+		 * included in the snapshot, so Oracle only needs the completion
+		 * message as the event signal.
 		 */
-		int currentCaEasy =
-				client.getVarbitValue(
-						Varbits.COMBAT_TASK_EASY
-				);
-
-		int currentCaMedium =
-				client.getVarbitValue(
-						Varbits.COMBAT_TASK_MEDIUM
-				);
-
-		int currentCaHard =
-				client.getVarbitValue(
-						Varbits.COMBAT_TASK_HARD
-				);
-
-		int currentCaElite =
-				client.getVarbitValue(
-						Varbits.COMBAT_TASK_ELITE
-				);
-
-		int currentCaMaster =
-				client.getVarbitValue(
-						Varbits.COMBAT_TASK_MASTER
-				);
-
-		int currentCaGrandmaster =
-				client.getVarbitValue(
-						Varbits.COMBAT_TASK_GRANDMASTER
-				);
-
 		if (
-				currentCaEasy > lastKnownCaEasy ||
-						currentCaMedium > lastKnownCaMedium ||
-						currentCaHard > lastKnownCaHard ||
-						currentCaElite > lastKnownCaElite ||
-						currentCaMaster > lastKnownCaMaster ||
-						currentCaGrandmaster >
-								lastKnownCaGrandmaster
+				message.startsWith(
+						"CA_ID:"
+				) &&
+						lowerMessage.contains(
+								"congratulations, you've completed"
+						) &&
+						lowerMessage.contains(
+								"combat task"
+						)
 		)
 		{
 			log.info(
 					"PUSH TRIGGER: Combat Achievement completed"
 			);
 
-			pushReasons.add(
+			requestSnapshot(
 					"COMBAT_ACHIEVEMENT"
 			);
+
+			return;
 		}
 
-		lastKnownCaEasy = currentCaEasy;
-		lastKnownCaMedium = currentCaMedium;
-		lastKnownCaHard = currentCaHard;
-		lastKnownCaElite = currentCaElite;
-		lastKnownCaMaster = currentCaMaster;
-		lastKnownCaGrandmaster =
-				currentCaGrandmaster;
-
-
-
 		/*
-		 * QUEST COMPLETED
-		 *
-		 * Only NOT-FINISHED -> FINISHED transitions push. Quest starts and
-		 * intermediate progress changes are deliberately ignored.
+		 * COLLECTION LOG ITEM GAIN
 		 */
-		for (Quest quest : Quest.values())
+		final String collectionPrefix =
+				"New item added to your collection log:";
+
+		if (
+				message.startsWith(
+						collectionPrefix
+				)
+		)
 		{
-			boolean currentFinished =
-					quest.getState(client) ==
-							QuestState.FINISHED;
+			String itemName =
+					message.substring(
+							collectionPrefix.length()
+					).trim();
 
-			boolean previousFinished =
-					lastKnownQuestFinished.getOrDefault(
-							quest,
-							currentFinished
-					);
-
-			if (
-					!previousFinished &&
-							currentFinished
-			)
-			{
-				log.info(
-						"PUSH TRIGGER: quest completed name='{}'",
-						quest.getName()
-				);
-
-				pushReasons.add(
-						"QUEST_COMPLETED:" +
-								quest.getName()
-				);
-			}
-
-			lastKnownQuestFinished.put(
-					quest,
-					currentFinished
-			);
-		}
-
-
-		/*
-		 * Coalesce simultaneous progression events into one upload per game
-		 * tick while retaining every reason in the diagnostic label.
-		 */
-		if (!pushReasons.isEmpty())
-		{
-			sendSnapshot(
-					String.join(
-							"+",
-							pushReasons
-					)
+			log.info(
+					"PUSH TRIGGER: collection log item gained '{}'",
+					itemName
 			);
 
-			lastUploadTime =
-					System.currentTimeMillis();
+			requestSnapshot(
+					itemName.isEmpty()
+							? "COLLECTION_LOG_ITEM"
+							: "COLLECTION_LOG_ITEM:" +
+							itemName
+			);
 		}
 	}
-
 
 
 	@Subscribe
@@ -626,6 +575,92 @@ public class OraclePlugin extends Plugin
 			ScriptPreFired event
 	)
 	{
+		/*
+		 * COLLECTION LOG POPUP FALLBACK
+		 *
+		 * RuneLite's Screenshot plugin watches the generic notification
+		 * start/delay scripts and reads the notification top/bottom strings.
+		 * We mirror only the Collection Log semantic signal here.
+		 *
+		 * The fallback is intentionally enabled only for popup-only mode
+		 * (COLLECTION_LOG_NOTIFICATION == 2). If chat is also enabled, the
+		 * already-proven GAMEMESSAGE path owns the event, preventing duplicate
+		 * Oracle pushes when both notifications are enabled.
+		 */
+		if (event.getScriptId() == ScriptID.NOTIFICATION_START)
+		{
+			collectionNotificationStarted = true;
+			return;
+		}
+
+		if (event.getScriptId() == ScriptID.NOTIFICATION_DELAY)
+		{
+			if (!collectionNotificationStarted)
+			{
+				return;
+			}
+
+			collectionNotificationStarted = false;
+
+			if (client.getVarbitValue(
+					Varbits.COLLECTION_LOG_NOTIFICATION
+			) != 2)
+			{
+				return;
+			}
+
+			String topText =
+					stripTags(
+							client.getVarcStrValue(
+									VarClientStr.NOTIFICATION_TOP_TEXT
+							)
+					).trim();
+
+			String bottomText =
+					stripTags(
+							client.getVarcStrValue(
+									VarClientStr.NOTIFICATION_BOTTOM_TEXT
+							)
+					).trim();
+
+			if (!"Collection log".equalsIgnoreCase(topText))
+			{
+				return;
+			}
+
+			final String popupPrefix = "New item:";
+
+			if (!bottomText.regionMatches(
+					true,
+					0,
+					popupPrefix,
+					0,
+					popupPrefix.length()
+			))
+			{
+				return;
+			}
+
+			String itemName =
+					bottomText.substring(
+							popupPrefix.length()
+					).trim();
+
+			log.info(
+					"PUSH TRIGGER: collection log popup item gained '{}'",
+					itemName
+			);
+
+			requestSnapshot(
+					itemName.isEmpty()
+							? "COLLECTION_LOG_ITEM"
+							: "COLLECTION_LOG_ITEM:" +
+							itemName
+			);
+
+			return;
+		}
+
 		/*
 		 * RuneProfile/WikiSync fast path.
 		 *
@@ -1287,7 +1322,7 @@ public class OraclePlugin extends Plugin
 					"Bank opened - sending immediate snapshot"
 			);
 
-			sendSnapshot("BANK_OPEN");
+			requestSnapshot("BANK_OPEN");
 		}
 
 		if (event.getGroupId() == 631)
@@ -1296,8 +1331,103 @@ public class OraclePlugin extends Plugin
 					"Seed Vault opened - sending immediate snapshot"
 			);
 
-			sendSnapshot("SEED_VAULT_OPEN");
+			requestSnapshot("SEED_VAULT_OPEN");
 		}
+	}
+
+
+	/*
+	 * SNAPSHOT RATE LIMITER
+	 *
+	 * At most one payload may begin sending per second. Events that arrive
+	 * inside that window do not form a queue: the newest reason overwrites
+	 * the previous pending reason. When the window expires, onGameTick builds
+	 * and sends one fresh snapshot for that newest reason.
+	 */
+	private void requestSnapshot(
+			String snapshotReason
+	)
+	{
+		if (
+				snapshotReason == null ||
+						snapshotReason.isBlank() ||
+						client.getLocalPlayer() == null
+		)
+		{
+			return;
+		}
+
+		long now =
+				System.currentTimeMillis();
+
+		if (
+				lastUploadTime == 0L ||
+						now - lastUploadTime >=
+								MIN_UPLOAD_INTERVAL_MS
+		)
+		{
+			/*
+			 * If an older reason was waiting but the window has already
+			 * expired, the event that just arrived is newer and wins.
+			 */
+			pendingSnapshotReason = null;
+
+			sendSnapshot(snapshotReason);
+			lastUploadTime =
+					System.currentTimeMillis();
+			return;
+		}
+
+		if (
+				pendingSnapshotReason != null &&
+						!pendingSnapshotReason.equals(snapshotReason)
+		)
+		{
+			log.debug(
+					"PUSH RATE LIMIT: replacing pending '{}' with newer '{}'",
+					pendingSnapshotReason,
+					snapshotReason
+			);
+		}
+
+		pendingSnapshotReason = snapshotReason;
+	}
+
+
+	private void flushPendingSnapshotIfReady()
+	{
+		if (
+				pendingSnapshotReason == null ||
+						client.getLocalPlayer() == null
+		)
+		{
+			return;
+		}
+
+		long now =
+				System.currentTimeMillis();
+
+		if (
+				now - lastUploadTime <
+						MIN_UPLOAD_INTERVAL_MS
+		)
+		{
+			return;
+		}
+
+		String snapshotReason =
+				pendingSnapshotReason;
+
+		pendingSnapshotReason = null;
+
+		log.debug(
+				"PUSH RATE LIMIT: sending newest pending '{}'",
+				snapshotReason
+		);
+
+		sendSnapshot(snapshotReason);
+		lastUploadTime =
+				System.currentTimeMillis();
 	}
 
 
@@ -1884,7 +2014,7 @@ public class OraclePlugin extends Plugin
 
 		for (
 				int taskId = 0;
-				taskId < 640;
+				taskId < CA_TASK_COMPLETION_VARPS.length * 32;
 				taskId++
 		)
 		{
@@ -2248,174 +2378,35 @@ public class OraclePlugin extends Plugin
 	}
 
 
-	private boolean isCombatAchievementComplete(
-			int taskId
-	)
-	{
-		int block =
-				taskId / 32;
+    private boolean isCombatAchievementComplete(
+            int taskId
+    )
+    {
+        if (taskId < 0)
+        {
+            return false;
+        }
 
-		int bit =
-				taskId % 32;
+        int block = taskId / 32;
 
-		int packed;
+        if (block >= CA_TASK_COMPLETION_VARPS.length)
+        {
+            return false;
+        }
 
+        int bit = taskId % 32;
 
-		switch (block)
-		{
-			case 0:
-				packed =
-						client.getVarpValue(
-								VarPlayerID.CA_TASK_COMPLETED_0
-						);
-				break;
+        int packed = client.getVarpValue(
+                CA_TASK_COMPLETION_VARPS[block]
+        );
 
-			case 1:
-				packed =
-						client.getVarpValue(
-								VarPlayerID.CA_TASK_COMPLETED_1
-						);
-				break;
+        return (
+                packed &
+                        (1 << bit)
+        ) != 0;
+    }
 
-			case 2:
-				packed =
-						client.getVarpValue(
-								VarPlayerID.CA_TASK_COMPLETED_2
-						);
-				break;
-
-			case 3:
-				packed =
-						client.getVarpValue(
-								VarPlayerID.CA_TASK_COMPLETED_3
-						);
-				break;
-
-			case 4:
-				packed =
-						client.getVarpValue(
-								VarPlayerID.CA_TASK_COMPLETED_4
-						);
-				break;
-
-			case 5:
-				packed =
-						client.getVarpValue(
-								VarPlayerID.CA_TASK_COMPLETED_5
-						);
-				break;
-
-			case 6:
-				packed =
-						client.getVarpValue(
-								VarPlayerID.CA_TASK_COMPLETED_6
-						);
-				break;
-
-			case 7:
-				packed =
-						client.getVarpValue(
-								VarPlayerID.CA_TASK_COMPLETED_7
-						);
-				break;
-
-			case 8:
-				packed =
-						client.getVarpValue(
-								VarPlayerID.CA_TASK_COMPLETED_8
-						);
-				break;
-
-			case 9:
-				packed =
-						client.getVarpValue(
-								VarPlayerID.CA_TASK_COMPLETED_9
-						);
-				break;
-
-			case 10:
-				packed =
-						client.getVarpValue(
-								VarPlayerID.CA_TASK_COMPLETED_10
-						);
-				break;
-
-			case 11:
-				packed =
-						client.getVarpValue(
-								VarPlayerID.CA_TASK_COMPLETED_11
-						);
-				break;
-
-			case 12:
-				packed =
-						client.getVarpValue(
-								VarPlayerID.CA_TASK_COMPLETED_12
-						);
-				break;
-
-			case 13:
-				packed =
-						client.getVarpValue(
-								VarPlayerID.CA_TASK_COMPLETED_13
-						);
-				break;
-
-			case 14:
-				packed =
-						client.getVarpValue(
-								VarPlayerID.CA_TASK_COMPLETED_14
-						);
-				break;
-
-			case 15:
-				packed =
-						client.getVarpValue(
-								VarPlayerID.CA_TASK_COMPLETED_15
-						);
-				break;
-
-			case 16:
-				packed =
-						client.getVarpValue(
-								VarPlayerID.CA_TASK_COMPLETED_16
-						);
-				break;
-
-			case 17:
-				packed =
-						client.getVarpValue(
-								VarPlayerID.CA_TASK_COMPLETED_17
-						);
-				break;
-
-			case 18:
-				packed =
-						client.getVarpValue(
-								VarPlayerID.CA_TASK_COMPLETED_18
-						);
-				break;
-
-			case 19:
-				packed =
-						client.getVarpValue(
-								VarPlayerID.CA_TASK_COMPLETED_19
-						);
-				break;
-
-			default:
-				return false;
-		}
-
-
-		return (
-				packed &
-						(1 << bit)
-		) != 0;
-	}
-
-
-	private String getEquipmentItemJson(
+private String getEquipmentItemJson(
 			ItemContainer equipment,
 			EquipmentInventorySlot slot
 	)
