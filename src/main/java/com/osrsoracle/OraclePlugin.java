@@ -134,6 +134,20 @@ public class OraclePlugin extends Plugin
 			true
 		);
 
+	private final ObservedItemContainerState cachedCoxPrivateStorageState =
+	        new ObservedItemContainerState(
+	                "coxPrivateStorage",
+	                ObservedItemContainerState.Scope.ACTIVITY,
+	                false
+	        );
+
+	private final ObservedItemContainerState cachedCoxSharedStorageState =
+	        new ObservedItemContainerState(
+	                "coxSharedStorage",
+	                ObservedItemContainerState.Scope.ACTIVITY,
+	                true
+	        );
+
 
 	private String entryIntentReason = null;
 	private String pendingEntrySnapshotReason = null;
@@ -226,6 +240,8 @@ public class OraclePlugin extends Plugin
 		cachedBankState.reset();
 		cachedSeedVaultState.reset();
 		cachedGimStorageState.reset();
+		cachedCoxPrivateStorageState.reset();
+		cachedCoxSharedStorageState.reset();
 		lastCollectionCaptureTime = 0;
 		cachedCollectionLogCapturedAt = null;
 		cachedCollectionLogPages.clear();
@@ -1377,29 +1393,55 @@ public class OraclePlugin extends Plugin
 			ItemContainerChanged event
 	)
 	{
-		if (
-				event.getContainerId() !=
-						InventoryID.INV_GROUP_TEMP ||
-				client.getLocalPlayer() == null
+		if (client.getLocalPlayer() == null)
+		{
+			return;
+		}
+
+		int containerId = event.getContainerId();
+		ObservedItemContainerState state;
+		String snapshotReason;
+
+		if (containerId == InventoryID.INV_GROUP_TEMP)
+		{
+			state = cachedGimStorageState;
+			snapshotReason = "GIM_STORAGE";
+		}
+		else if (
+			containerId ==
+				InventoryID.RAIDS_PRIVATESTORAGE
 		)
+		{
+			state = cachedCoxPrivateStorageState;
+			snapshotReason = "COX_PRIVATE_STORAGE";
+		}
+		else if (
+			containerId ==
+				InventoryID.RAIDS_SHAREDSTORAGE
+		)
+		{
+			state = cachedCoxSharedStorageState;
+			snapshotReason = "COX_SHARED_STORAGE";
+		}
+		else
 		{
 			return;
 		}
 
 		/*
-		 * INV_GROUP_TEMP (659) is the Group Ironman shared-storage
-		 * container. An actual container event is authoritative.
-		 * Later absence of the container is not evidence of empty.
+		 * An actual container event is authoritative. Later absence is not
+		 * evidence of empty. CoX storage remains ACTIVITY scoped and must
+		 * never be promoted to durable account ownership.
 		 */
 		boolean accepted =
-				cachedGimStorageState.observeIfPresent(
-						event.getItemContainer(),
-						Instant.now().toString()
+				state.observeIfPresent(
+					event.getItemContainer(),
+					Instant.now().toString()
 				);
 
 		if (accepted)
 		{
-			requestSnapshot("GIM_STORAGE");
+			requestSnapshot(snapshotReason);
 		}
 	}
 
@@ -1930,6 +1972,8 @@ public class OraclePlugin extends Plugin
 						cachedBankState.getObservedAt(),
 						cachedSeedVaultState.getObservedAt(),
 						cachedGimStorageState.getObservedAt(),
+						cachedCoxPrivateStorageState.getObservedAt(),
+						cachedCoxSharedStorageState.getObservedAt(),
 						cachedCollectionLogCapturedAt,
 						cachedCollectionLogPages.size(),
 						collectionInstantCapturedAt
@@ -1945,6 +1989,12 @@ public class OraclePlugin extends Plugin
 
 		String gimStorageJson =
 				observedItemContainerPayload(cachedGimStorageState);
+
+		String coxPrivateStorageJson =
+				observedItemContainerPayload(cachedCoxPrivateStorageState);
+
+		String coxSharedStorageJson =
+				observedItemContainerPayload(cachedCoxSharedStorageState);
 
 		int accountTypeCode =
 				client.getVarbitValue(
@@ -2513,6 +2563,8 @@ public class OraclePlugin extends Plugin
 								"\"bank\":%s," +
 								"\"seedVault\":%s," +
 								"\"gimStorage\":%s," +
+								"\"coxPrivateStorage\":%s," +
+								"\"coxSharedStorage\":%s," +
 								"\"equipment\":%s}",
 
 						escapeJson(account),
@@ -2547,6 +2599,8 @@ public class OraclePlugin extends Plugin
 						bankJson,
 						seedVaultJson,
 						gimStorageJson,
+						coxPrivateStorageJson,
+						coxSharedStorageJson,
 						equipmentJson
 				);
 

@@ -27,6 +27,8 @@ final class SnapshotEvidence
             String bankObservedAt,
             String seedVaultObservedAt,
             String gimStorageObservedAt,
+            String coxPrivateStorageObservedAt,
+            String coxSharedStorageObservedAt,
             String collectionLogObservedAt,
             int collectionLogPages,
             String collectionLogInstantObservedAt
@@ -76,6 +78,16 @@ final class SnapshotEvidence
                 observation(
                         gimStorageObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
                         gimStorageObservedAt
+                ) +
+                ",\"coxPrivateStorage\":" +
+                observation(
+                        coxPrivateStorageObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
+                        coxPrivateStorageObservedAt
+                ) +
+                ",\"coxSharedStorage\":" +
+                observation(
+                        coxSharedStorageObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
+                        coxSharedStorageObservedAt
                 ) +
                 ",\"collectionLogPages\":{\"status\":" +
                 jsonString(

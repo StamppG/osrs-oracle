@@ -20,6 +20,8 @@ public class SnapshotEvidenceTest
                         "2026-09-20T19:55:00Z",
                         null,
                         "2026-09-20T19:57:00Z",
+                        "2026-09-20T19:58:00Z",
+                        "2026-09-20T19:59:00Z",
                         "2026-09-20T19:50:00Z",
                         3,
                         null
@@ -49,6 +51,14 @@ public class SnapshotEvidenceTest
                         "\"observedAt\":\"2026-09-20T19:57:00Z\"}"
         ));
         assertTrue(json.contains(
+                "\"coxPrivateStorage\":{\"status\":\"OBSERVED\"," +
+                        "\"observedAt\":\"2026-09-20T19:58:00Z\"}"
+        ));
+        assertTrue(json.contains(
+                "\"coxSharedStorage\":{\"status\":\"OBSERVED\"," +
+                        "\"observedAt\":\"2026-09-20T19:59:00Z\"}"
+        ));
+        assertTrue(json.contains(
                 "\"collectionLogPages\":{\"status\":\"PARTIAL\"," +
                         "\"observedAt\":\"2026-09-20T19:50:00Z\"," +
                         "\"pagesObserved\":3}"
@@ -66,6 +76,8 @@ public class SnapshotEvidenceTest
                         1,
                         false,
                         false,
+                        null,
+                        null,
                         null,
                         null,
                         null,
