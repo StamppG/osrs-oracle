@@ -50,7 +50,7 @@ final class SnapshotEvidence
                 ",\"datasets\":[\"account\",\"accountType\",\"membership\"," +
                 "\"slayer\",\"combatAchievements\",\"achievementDiaries\"," +
                 "\"achievementDiaryTaskState\",\"globalResourceCapabilityState\"," +
-                "\"skills\",\"quests\"]}" +
+                "\"persistentStorageLiveItemState\",\"skills\",\"quests\"]}" +
                 ",\"inventory\":" +
                 observation(
                         inventoryObserved ? "OBSERVED" : "NOT_OBSERVED",

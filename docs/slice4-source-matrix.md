@@ -1,4 +1,4 @@
-# Slice 4 — Resource, Capability, Container, and Unlock Source Matrix
+# Slice 4 â€” Resource, Capability, Container, and Unlock Source Matrix
 
 Status: IN PROGRESS
 Branch: codex/resources-unlocks-containers
@@ -17,15 +17,15 @@ The client MUST NOT:
 
 ## Scope classes
 
-- GLOBAL — persistent character state readable during normal live snapshots
-- ACCOUNT_STORAGE — persistent resources belonging to the character outside the normal bank
-- OBSERVED_CONTAINER — contents are authoritative only after RuneLite actually observes the container
-- GROUP_STORAGE — resources shared by a GIM group
-- ACTIVITY_STORAGE — raid/minigame scoped resources
-- ITEM_STATE — state tied to a positively identified item
-- DERIVED_SERVER_SIDE — client reports factual inputs; platform derives meaning
-- SPECIAL_SYNC — deliberately synchronized state not appropriate for heartbeat polling
-- NEEDS_PROOF — source identified, semantics still require validation
+- GLOBAL â€” persistent character state readable during normal live snapshots
+- ACCOUNT_STORAGE â€” persistent resources belonging to the character outside the normal bank
+- OBSERVED_CONTAINER â€” contents are authoritative only after RuneLite actually observes the container
+- GROUP_STORAGE â€” resources shared by a GIM group
+- ACTIVITY_STORAGE â€” raid/minigame scoped resources
+- ITEM_STATE â€” state tied to a positively identified item
+- DERIVED_SERVER_SIDE â€” client reports factual inputs; platform derives meaning
+- SPECIAL_SYNC â€” deliberately synchronized state not appropriate for heartbeat polling
+- NEEDS_PROOF â€” source identified, semantics still require validation
 
 ## Global resources and currencies
 
@@ -81,17 +81,17 @@ The client MUST NOT:
 |---|---|---|---|
 | Bank | InventoryID.BANK | OBSERVED_CONTAINER | IMPLEMENTED |
 | Seed Vault | InventoryID.SEED_VAULT | OBSERVED_CONTAINER | IMPLEMENTED |
-| Tool Leprechaun | FARMING_TOOLS_* varbits | ACCOUNT_STORAGE | READY |
+| Tool Leprechaun | FARMING_TOOLS_* varbits | ACCOUNT_STORAGE | NEEDS_OBSERVATION_PROOF |
 | Potion storage | POTIONSTORE_* varps + RuneLite PotionStorage model | ACCOUNT_STORAGE | NEEDS_DECODER |
-| Rune pouch | RUNE_POUCH_TYPE_1..6 + QUANTITY_1..6 | ITEM_STATE | READY |
-| Essence pouches | essence pouch state/type vars | ITEM_STATE | READY |
-| Bolt pouch | XBOWS_POUCH slot/quantity vars | ITEM_STATE | READY |
-| Plank sack | PLANK_SACK_* vars | ACCOUNT_STORAGE | READY |
+| Rune pouch | RUNE_POUCH_TYPE_1..6 + QUANTITY_1..6 | ITEM_STATE | READY_LIVE |
+| Essence pouches | essence pouch amount/type/degradation vars | ITEM_STATE | READY_LIVE |
+| Bolt pouch | XBOWS_POUCH slot/quantity vars | ITEM_STATE | NEEDS_OBSERVATION_PROOF |
+| Plank sack | PLANK_SACK_* vars | ACCOUNT_STORAGE | NEEDS_OBSERVATION_PROOF |
 | Master scroll book | BOOKOFSCROLLS* vars | ACCOUNT_STORAGE | NEEDS_DECODER |
-| Fossil Island storage | FOSSIL_STORAGE* vars | ACCOUNT_STORAGE | READY |
-| Hallowed Sepulchre storage | HALLOWED_STORAGE_* vars | ACCOUNT_STORAGE | READY |
-| Clue scroll case | SCROLL_CASE_* vars | ACCOUNT_STORAGE | READY |
-| TOA stored pickaxe | TOA_PICKAXE_STORAGE | ACCOUNT_STORAGE | READY |
+| Fossil Island storage | FOSSIL_STORAGE* vars | ACCOUNT_STORAGE | NEEDS_OBSERVATION_PROOF |
+| Hallowed Sepulchre storage | HALLOWED_STORAGE_* vars | ACCOUNT_STORAGE | NEEDS_OBSERVATION_PROOF |
+| Clue scroll case | SCROLL_CASE_* vars | ACCOUNT_STORAGE | NEEDS_OBSERVATION_PROOF |
+| TOA stored pickaxe | TOA_PICKAXE_STORAGE | ACCOUNT_STORAGE | NEEDS_OBSERVATION_PROOF |
 | Dizana's quiver state | quiver ammo/charge vars | ITEM_STATE | READY |
 | Pre-pot device / chugging loadouts | PREPOT_DEVICE_* vars | ACCOUNT_STORAGE | READY |
 | POH Costume Room | POH costume inventories | OBSERVED_CONTAINER | READY |

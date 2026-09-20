@@ -1817,6 +1817,9 @@ public class OraclePlugin extends Plugin
 		String globalResourceCapabilityStateJson =
 				GlobalResourceCapabilityState.collect(client);
 
+		String persistentStorageLiveItemStateJson =
+				PersistentStorageEvidence.collectLiveItemState(client);
+
 		int accountTypeCode =
 				client.getVarbitValue(
 						Varbits.ACCOUNT_TYPE
@@ -2375,6 +2378,7 @@ public class OraclePlugin extends Plugin
 								"\"achievementDiaries\":%s," +
 								"\"achievementDiaryTaskState\":%s," +
 								"\"globalResourceCapabilityState\":%s," +
+								"\"persistentStorageLiveItemState\":%s," +
 								"\"collectionLog\":%s," +
 								"\"collectionLogInstant\":%s," +
 								"\"skills\":%s," +
@@ -2405,6 +2409,7 @@ public class OraclePlugin extends Plugin
 						diaryJson,
 						diaryTaskStateJson,
 						globalResourceCapabilityStateJson,
+						persistentStorageLiveItemStateJson,
 						collectionLogJson,
 						instantCollectionLogJson,
 

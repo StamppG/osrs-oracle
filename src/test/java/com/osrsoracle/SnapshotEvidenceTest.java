@@ -33,7 +33,7 @@ public class SnapshotEvidenceTest
         ));
         assertTrue(json.contains(
                 "\"achievementDiaryTaskState\",\"globalResourceCapabilityState\"," +
-                        "\"skills\",\"quests\"]"
+                        "\"persistentStorageLiveItemState\",\"skills\",\"quests\"]"
         ));
         assertTrue(json.contains(
                 "\"bank\":{\"status\":\"OBSERVED\"," +
