@@ -390,11 +390,21 @@ public class OraclePlugin extends Plugin
 		}
 	}
 
-
+	static boolean isIndividualDiaryTaskMessage(String lowerMessage)
+	{
+	        return lowerMessage.startsWith(
+	                        "well done! you have completed "
+	        ) &&
+	                        lowerMessage.contains(
+	                                        " task in the "
+	                        ) &&
+	                        lowerMessage.endsWith(
+	                                        " area. your achievement diary has been updated."
+	                        );
+	}
 
 	/*
 	 * LEVEL-UP / QUEST / COLLECTION LOG PUSHES
-
 	 *
 	 * RuneLite already emits the visible level-up game message. This is more
 	 * reliable than polling XP/stat changes because the message is guaranteed
@@ -466,6 +476,19 @@ public class OraclePlugin extends Plugin
 		if (event.getType() != ChatMessageType.GAMEMESSAGE)
 		{
 			return;
+		}
+
+		if (isIndividualDiaryTaskMessage(lowerMessage))
+		{
+		        log.info(
+		                        "PUSH TRIGGER: Achievement Diary task completed"
+		        );
+
+		        requestSnapshot(
+		                        "DIARY_TASK"
+		        );
+
+		        return;
 		}
 
 		/*
@@ -1752,6 +1775,8 @@ public class OraclePlugin extends Plugin
 		String clientTime =
 				Instant.now().toString();
 
+		String diaryTaskStateJson = AchievementDiaryState.collect(client);
+
 		int accountTypeCode =
 				client.getVarbitValue(
 						Varbits.ACCOUNT_TYPE
@@ -2307,6 +2332,7 @@ public class OraclePlugin extends Plugin
 								"\"grandmaster\":%d," +
 								"\"completedTaskIds\":%s}," +
 								"\"achievementDiaries\":%s," +
+								"\"achievementDiaryTaskState\":%s," +
 								"\"collectionLog\":%s," +
 								"\"collectionLogInstant\":%s," +
 								"\"skills\":%s," +
@@ -2334,6 +2360,7 @@ public class OraclePlugin extends Plugin
 						caCompletedIds.toString(),
 
 						diaryJson,
+						diaryTaskStateJson,
 						collectionLogJson,
 						instantCollectionLogJson,
 
