@@ -74,6 +74,16 @@ public class OraclePlugin extends Plugin
 
     private static final long MIN_UPLOAD_INTERVAL_MS = 1000L;
 
+    private static final String[] ACCOUNT_TYPE_NAMES = {
+        "NORMAL",
+        "IRONMAN",
+        "ULTIMATE_IRONMAN",
+        "HARDCORE_IRONMAN",
+        "GROUP_IRONMAN",
+        "HARDCORE_GROUP_IRONMAN",
+        "UNRANKED_GROUP_IRONMAN"
+    };
+
     private static final int[] CA_TASK_COMPLETION_VARPS = {
         VarPlayerID.CA_TASK_COMPLETED_0,
         VarPlayerID.CA_TASK_COMPLETED_1,
@@ -1742,6 +1752,32 @@ public class OraclePlugin extends Plugin
 		String clientTime =
 				Instant.now().toString();
 
+		int accountTypeCode =
+				client.getVarbitValue(
+						Varbits.ACCOUNT_TYPE
+				);
+
+		String accountTypeJson =
+				accountTypeCode >= 0 &&
+						accountTypeCode < ACCOUNT_TYPE_NAMES.length
+						? "\"" + ACCOUNT_TYPE_NAMES[accountTypeCode] + "\""
+						: "null";
+
+		int membershipDays =
+				client.getVarpValue(
+						VarPlayerID.ACCOUNT_CREDIT
+				);
+
+		String membershipActiveJson =
+				membershipDays >= 0
+						? Boolean.toString(membershipDays > 0)
+						: "null";
+
+		String membershipDaysJson =
+				membershipDays >= 0
+						? Integer.toString(membershipDays)
+						: "null";
+
 
 		/*
 		 * COMBAT ACHIEVEMENT TIER COUNTS
@@ -2255,6 +2291,9 @@ public class OraclePlugin extends Plugin
 		String json =
 				String.format(
 						"{\"account\":\"%s\"," +
+								"\"accountType\":%s," +
+								"\"membershipActive\":%s," +
+								"\"membershipDaysRemaining\":%s," +
 								"\"clientTime\":\"%s\"," +
 								"\"snapshotReason\":\"%s\"," +
 								"\"slayerTask\":\"%s\"," +
@@ -2278,6 +2317,9 @@ public class OraclePlugin extends Plugin
 								"\"equipment\":%s}",
 
 						escapeJson(account),
+						accountTypeJson,
+						membershipActiveJson,
+						membershipDaysJson,
 						escapeJson(clientTime),
 						escapeJson(snapshotReason),
 						escapeJson(slayerTask),
