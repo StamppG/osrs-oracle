@@ -110,6 +110,10 @@ public class OraclePlugin extends Plugin
 
 	private long lastUploadTime = 0;
 	private String pendingSnapshotReason = null;
+	private String clientSessionId = null;
+	private long snapshotSequence = 0;
+	private String cachedBankCapturedAt = null;
+	private String cachedSeedVaultCapturedAt = null;
 
 	private Item[] cachedBankItems = null;
 
@@ -123,6 +127,7 @@ public class OraclePlugin extends Plugin
 	private boolean collectionNotificationStarted = false;
 
 	private long lastCollectionCaptureTime = 0;
+	private String cachedCollectionLogCapturedAt = null;
 	private final Map<String, String> cachedCollectionLogPages =
 			new LinkedHashMap<>();
 
@@ -201,6 +206,17 @@ public class OraclePlugin extends Plugin
 	@Override
 	protected void startUp() throws Exception
 	{
+		clientSessionId = SnapshotEvidence.newSessionId();
+		snapshotSequence = 0;
+		cachedBankItems = null;
+		cachedBankCapturedAt = null;
+		cachedSeedVaultItems = null;
+		cachedSeedVaultCapturedAt = null;
+		lastCollectionCaptureTime = 0;
+		cachedCollectionLogCapturedAt = null;
+		cachedCollectionLogPages.clear();
+		collectionInstantCapturedAt = null;
+		instantCollectionLogItems.clear();
 		log.info("OSRS Account Sync plugin started");
 	}
 
@@ -284,6 +300,7 @@ public class OraclePlugin extends Plugin
 		{
 			cachedBankItems =
 					bank.getItems().clone();
+			cachedBankCapturedAt = Instant.now().toString();
 		}
 
 		/*
@@ -298,6 +315,7 @@ public class OraclePlugin extends Plugin
 		{
 			cachedSeedVaultItems =
 					seedVault.getItems().clone();
+			cachedSeedVaultCapturedAt = Instant.now().toString();
 		}
 
 		/*
@@ -927,6 +945,7 @@ public class OraclePlugin extends Plugin
 				pageName,
 				pageJson
 		);
+		cachedCollectionLogCapturedAt = Instant.now().toString();
 
 		log.info(
 				"CLOG CAPTURE: page='{}' obtained={}/{} cachedPages={}",
@@ -1505,6 +1524,7 @@ public class OraclePlugin extends Plugin
 		{
 			cachedBankItems =
 					bank.getItems().clone();
+			cachedBankCapturedAt = Instant.now().toString();
 		}
 
 
@@ -1516,6 +1536,7 @@ public class OraclePlugin extends Plugin
 		{
 			cachedSeedVaultItems =
 					seedVault.getItems().clone();
+			cachedSeedVaultCapturedAt = Instant.now().toString();
 		}
 
 
@@ -1774,6 +1795,22 @@ public class OraclePlugin extends Plugin
 
 		String clientTime =
 				Instant.now().toString();
+
+
+		String evidenceJson =
+				SnapshotEvidence.collect(
+						clientTime,
+						snapshotReason,
+						clientSessionId,
+						++snapshotSequence,
+						inventory != null,
+						equipment != null,
+						cachedBankCapturedAt,
+						cachedSeedVaultCapturedAt,
+						cachedCollectionLogCapturedAt,
+						cachedCollectionLogPages.size(),
+						collectionInstantCapturedAt
+				);
 
 		String diaryTaskStateJson = AchievementDiaryState.collect(client);
 
@@ -2321,6 +2358,7 @@ public class OraclePlugin extends Plugin
 								"\"membershipDaysRemaining\":%s," +
 								"\"clientTime\":\"%s\"," +
 								"\"snapshotReason\":\"%s\"," +
+								"\"evidence\":%s," +
 								"\"slayerTask\":\"%s\"," +
 								"\"slayerRemaining\":%d," +
 								"\"combatAchievements\":{" +
@@ -2348,6 +2386,7 @@ public class OraclePlugin extends Plugin
 						membershipDaysJson,
 						escapeJson(clientTime),
 						escapeJson(snapshotReason),
+						evidenceJson,
 						escapeJson(slayerTask),
 						slayerRemaining,
 
