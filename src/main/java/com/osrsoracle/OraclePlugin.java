@@ -112,12 +112,19 @@ public class OraclePlugin extends Plugin
 	private String pendingSnapshotReason = null;
 	private String clientSessionId = null;
 	private long snapshotSequence = 0;
-	private String cachedBankCapturedAt = null;
-	private String cachedSeedVaultCapturedAt = null;
+	private final ObservedItemContainerState cachedBankState =
+		new ObservedItemContainerState(
+			"bank",
+			ObservedItemContainerState.Scope.ACCOUNT,
+			false
+		);
 
-	private Item[] cachedBankItems = null;
-
-	private Item[] cachedSeedVaultItems = null;
+	private final ObservedItemContainerState cachedSeedVaultState =
+		new ObservedItemContainerState(
+			"seedVault",
+			ObservedItemContainerState.Scope.ACCOUNT,
+			false
+		);
 
 
 	private String entryIntentReason = null;
@@ -208,10 +215,8 @@ public class OraclePlugin extends Plugin
 	{
 		clientSessionId = SnapshotEvidence.newSessionId();
 		snapshotSequence = 0;
-		cachedBankItems = null;
-		cachedBankCapturedAt = null;
-		cachedSeedVaultItems = null;
-		cachedSeedVaultCapturedAt = null;
+		cachedBankState.reset();
+		cachedSeedVaultState.reset();
 		lastCollectionCaptureTime = 0;
 		cachedCollectionLogCapturedAt = null;
 		cachedCollectionLogPages.clear();
@@ -296,12 +301,10 @@ public class OraclePlugin extends Plugin
 						InventoryID.BANK
 				);
 
-		if (bank != null)
-		{
-			cachedBankItems =
-					bank.getItems().clone();
-			cachedBankCapturedAt = Instant.now().toString();
-		}
+		cachedBankState.observeIfPresent(
+			bank,
+			Instant.now().toString()
+		);
 
 		/*
 		 * SEED VAULT CACHE
@@ -311,12 +314,10 @@ public class OraclePlugin extends Plugin
 						InventoryID.SEED_VAULT
 				);
 
-		if (seedVault != null)
-		{
-			cachedSeedVaultItems =
-					seedVault.getItems().clone();
-			cachedSeedVaultCapturedAt = Instant.now().toString();
-		}
+		cachedSeedVaultState.observeIfPresent(
+			seedVault,
+			Instant.now().toString()
+		);
 
 		/*
 		 * RATE-LIMITED PENDING PUSH
@@ -1520,29 +1521,28 @@ public class OraclePlugin extends Plugin
 		/*
 		 * Refresh live bank cache if the bank is currently available.
 		 */
-		if (bank != null)
-		{
-			cachedBankItems =
-					bank.getItems().clone();
-			cachedBankCapturedAt = Instant.now().toString();
-		}
+		cachedBankState.observeIfPresent(
+			bank,
+			Instant.now().toString()
+		);
 
 
 		/*
 		 * Refresh live Seed Vault cache if the Seed Vault is currently
 		 * available.
 		 */
-		if (seedVault != null)
-		{
-			cachedSeedVaultItems =
-					seedVault.getItems().clone();
-			cachedSeedVaultCapturedAt = Instant.now().toString();
-		}
+		cachedSeedVaultState.observeIfPresent(
+			seedVault,
+			Instant.now().toString()
+		);
 
 
 		/*
 		 * BANK JSON
 		 */
+		Item[] cachedBankItems =
+		        cachedBankState.getItems();
+
 		String bankJson = "null";
 
 		if (cachedBankItems != null)
@@ -1596,6 +1596,9 @@ public class OraclePlugin extends Plugin
 		/*
 		 * SEED VAULT JSON
 		 */
+		Item[] cachedSeedVaultItems =
+		        cachedSeedVaultState.getItems();
+
 		String seedVaultJson = "null";
 
 		if (cachedSeedVaultItems != null)
@@ -1805,8 +1808,8 @@ public class OraclePlugin extends Plugin
 						++snapshotSequence,
 						inventory != null,
 						equipment != null,
-						cachedBankCapturedAt,
-						cachedSeedVaultCapturedAt,
+						cachedBankState.getObservedAt(),
+						cachedSeedVaultState.getObservedAt(),
 						cachedCollectionLogCapturedAt,
 						cachedCollectionLogPages.size(),
 						collectionInstantCapturedAt
