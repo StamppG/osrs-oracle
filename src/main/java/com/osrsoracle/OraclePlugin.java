@@ -22,6 +22,7 @@ import net.runelite.api.FontID;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameTick;
+import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.ScriptPreFired;
@@ -126,6 +127,13 @@ public class OraclePlugin extends Plugin
 			false
 		);
 
+	private final ObservedItemContainerState cachedGimStorageState =
+		new ObservedItemContainerState(
+			"gimStorage",
+			ObservedItemContainerState.Scope.GROUP,
+			true
+		);
+
 
 	private String entryIntentReason = null;
 	private String pendingEntrySnapshotReason = null;
@@ -217,6 +225,7 @@ public class OraclePlugin extends Plugin
 		snapshotSequence = 0;
 		cachedBankState.reset();
 		cachedSeedVaultState.reset();
+		cachedGimStorageState.reset();
 		lastCollectionCaptureTime = 0;
 		cachedCollectionLogCapturedAt = null;
 		cachedCollectionLogPages.clear();
@@ -1364,6 +1373,37 @@ public class OraclePlugin extends Plugin
 
 
 	@Subscribe
+	public void onItemContainerChanged(
+			ItemContainerChanged event
+	)
+	{
+		if (
+				event.getContainerId() !=
+						InventoryID.INV_GROUP_TEMP ||
+				client.getLocalPlayer() == null
+		)
+		{
+			return;
+		}
+
+		/*
+		 * INV_GROUP_TEMP (659) is the Group Ironman shared-storage
+		 * container. An actual container event is authoritative.
+		 * Later absence of the container is not evidence of empty.
+		 */
+		boolean accepted =
+				cachedGimStorageState.observeIfPresent(
+						event.getItemContainer(),
+						Instant.now().toString()
+				);
+
+		if (accepted)
+		{
+			requestSnapshot("GIM_STORAGE");
+		}
+	}
+
+	@Subscribe
 	public void onWidgetLoaded(
 			WidgetLoaded event
 	)
@@ -1388,6 +1428,85 @@ public class OraclePlugin extends Plugin
 		}
 	}
 
+
+	/*
+	 * Serialize a retained observed container without changing ownership
+	 * semantics. A null item array means the container has never been
+	 * authoritatively observed in this client session; an empty array
+	 * means it was authoritatively observed empty.
+	 */
+	private String observedItemContainerPayload(
+			ObservedItemContainerState state
+	)
+	{
+		Item[] observedItems = state.getItems();
+
+		String scope =
+				state.getScope().name();
+
+		String ownership =
+				state.isShared()
+						? "SHARED"
+						: "PERSONAL";
+
+		if (observedItems == null)
+		{
+			return String.format(
+					"{\"scope\":\"%s\",\"ownership\":\"%s\",\"items\":null}",
+					scope,
+					ownership
+			);
+		}
+
+		StringJoiner items =
+				new StringJoiner(
+						",",
+						"[",
+						"]"
+				);
+
+		for (
+				int slot = 0;
+				slot < observedItems.length;
+				slot++
+		)
+		{
+			Item item = observedItems[slot];
+
+			if (
+					item == null ||
+							item.getId() <= 0
+			)
+			{
+				items.add("null");
+				continue;
+			}
+
+			String itemName =
+					client
+							.getItemDefinition(
+									item.getId()
+							)
+							.getName();
+
+			items.add(
+					String.format(
+							"{\"slot\":%d,\"name\":\"%s\",\"id\":%d,\"quantity\":%d}",
+						slot,
+						escapeJson(itemName),
+						item.getId(),
+						item.getQuantity()
+					)
+			);
+		}
+
+		return String.format(
+				"{\"scope\":\"%s\",\"ownership\":\"%s\",\"items\":%s}",
+			scope,
+			ownership,
+			items
+		);
+	}
 
 	/*
 	 * SNAPSHOT RATE LIMITER
@@ -1810,6 +1929,7 @@ public class OraclePlugin extends Plugin
 						equipment != null,
 						cachedBankState.getObservedAt(),
 						cachedSeedVaultState.getObservedAt(),
+						cachedGimStorageState.getObservedAt(),
 						cachedCollectionLogCapturedAt,
 						cachedCollectionLogPages.size(),
 						collectionInstantCapturedAt
@@ -1822,6 +1942,9 @@ public class OraclePlugin extends Plugin
 
 		String persistentStorageLiveItemStateJson =
 				PersistentStorageEvidence.collectLiveItemState(client);
+
+		String gimStorageJson =
+				observedItemContainerPayload(cachedGimStorageState);
 
 		int accountTypeCode =
 				client.getVarbitValue(
@@ -2389,6 +2512,7 @@ public class OraclePlugin extends Plugin
 								"\"inventory\":%s," +
 								"\"bank\":%s," +
 								"\"seedVault\":%s," +
+								"\"gimStorage\":%s," +
 								"\"equipment\":%s}",
 
 						escapeJson(account),
@@ -2422,6 +2546,7 @@ public class OraclePlugin extends Plugin
 						inventoryJson,
 						bankJson,
 						seedVaultJson,
+						gimStorageJson,
 						equipmentJson
 				);
 

@@ -107,8 +107,8 @@ The client MUST NOT:
 | Huntsman's kit | HUNTSMANS_KIT | OBSERVED_CONTAINER | READY |
 | Looting bag | LOOTING_BAG | OBSERVED_CONTAINER | READY |
 | Dizana quiver ammo | DIZANAS_QUIVER_AMMO | ITEM_STATE / OBSERVED_CONTAINER | READY |
-| GIM shared storage | INV_GROUP_TEMP / group storage inventory | GROUP_STORAGE | READY |
-| GIM storage access level | GIM_STORAGE_ACCESS_LEVEL | GROUP_STORAGE | READY |
+| GIM shared storage | INV_GROUP_TEMP / group storage inventory | GROUP_STORAGE | IMPLEMENTED_SOURCE_PROVEN |
+| GIM storage access level | GIM_STORAGE_ACCESS_LEVEL | GROUP_STORAGE | NEEDS_PROOF |
 | Death storage | death inventory IDs | ACCOUNT_STORAGE / OBSERVED_CONTAINER | READY |
 | CoX private storage | RAIDS_PRIVATESTORAGE | ACTIVITY_STORAGE | READY |
 | CoX shared storage | RAIDS_SHAREDSTORAGE | ACTIVITY_STORAGE / SHARED | READY |
@@ -125,7 +125,7 @@ Client facts:
 - most recently observed shared-storage contents
 - observedAt
 - group/shared scope
-- storage access-level evidence when available
+- storage access-level evidence only after source semantics are proven
 
 Platform rules:
 - omitted or NOT_OBSERVED does not erase prior GIM storage state

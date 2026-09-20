@@ -26,6 +26,7 @@ final class SnapshotEvidence
             boolean equipmentObserved,
             String bankObservedAt,
             String seedVaultObservedAt,
+            String gimStorageObservedAt,
             String collectionLogObservedAt,
             int collectionLogPages,
             String collectionLogInstantObservedAt
@@ -70,6 +71,11 @@ final class SnapshotEvidence
                 observation(
                         seedVaultObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
                         seedVaultObservedAt
+                ) +
+                ",\"gimStorage\":" +
+                observation(
+                        gimStorageObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
+                        gimStorageObservedAt
                 ) +
                 ",\"collectionLogPages\":{\"status\":" +
                 jsonString(
