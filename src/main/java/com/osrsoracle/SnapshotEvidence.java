@@ -49,7 +49,8 @@ final class SnapshotEvidence
                 ",\"observedAt\":" + jsonString(observedAt) +
                 ",\"datasets\":[\"account\",\"accountType\",\"membership\"," +
                 "\"slayer\",\"combatAchievements\",\"achievementDiaries\"," +
-                "\"achievementDiaryTaskState\",\"skills\",\"quests\"]}" +
+                "\"achievementDiaryTaskState\",\"globalResourceCapabilityState\"," +
+                "\"skills\",\"quests\"]}" +
                 ",\"inventory\":" +
                 observation(
                         inventoryObserved ? "OBSERVED" : "NOT_OBSERVED",

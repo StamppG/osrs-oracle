@@ -32,6 +32,10 @@ public class SnapshotEvidenceTest
                 "\"datasets\":[\"account\",\"accountType\",\"membership\""
         ));
         assertTrue(json.contains(
+                "\"achievementDiaryTaskState\",\"globalResourceCapabilityState\"," +
+                        "\"skills\",\"quests\"]"
+        ));
+        assertTrue(json.contains(
                 "\"bank\":{\"status\":\"OBSERVED\"," +
                         "\"observedAt\":\"2026-09-20T19:55:00Z\"}"
         ));

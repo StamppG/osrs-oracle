@@ -1814,6 +1814,9 @@ public class OraclePlugin extends Plugin
 
 		String diaryTaskStateJson = AchievementDiaryState.collect(client);
 
+		String globalResourceCapabilityStateJson =
+				GlobalResourceCapabilityState.collect(client);
+
 		int accountTypeCode =
 				client.getVarbitValue(
 						Varbits.ACCOUNT_TYPE
@@ -2371,6 +2374,7 @@ public class OraclePlugin extends Plugin
 								"\"completedTaskIds\":%s}," +
 								"\"achievementDiaries\":%s," +
 								"\"achievementDiaryTaskState\":%s," +
+								"\"globalResourceCapabilityState\":%s," +
 								"\"collectionLog\":%s," +
 								"\"collectionLogInstant\":%s," +
 								"\"skills\":%s," +
@@ -2400,6 +2404,7 @@ public class OraclePlugin extends Plugin
 
 						diaryJson,
 						diaryTaskStateJson,
+						globalResourceCapabilityStateJson,
 						collectionLogJson,
 						instantCollectionLogJson,
 
