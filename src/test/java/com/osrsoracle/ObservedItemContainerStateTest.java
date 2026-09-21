@@ -212,4 +212,31 @@ public class ObservedItemContainerStateTest
         assertEquals(5318, retained[0].getId());
         assertEquals(12, retained[0].getQuantity());
     }
+
+    @Test
+    public void gravestoneStorageIsPersonalAccountState()
+    {
+        ObservedItemContainerState state =
+                new ObservedItemContainerState(
+                        "gravestoneStorage",
+                        ObservedItemContainerState.Scope.ACCOUNT,
+                        false
+                );
+
+        assertEquals(
+                "gravestoneStorage",
+                state.getDataset()
+        );
+
+        assertEquals(
+                ObservedItemContainerState.Scope.ACCOUNT,
+                state.getScope()
+        );
+
+        assertFalse(state.isShared());
+        assertFalse(state.hasObservation());
+        assertEquals("NOT_OBSERVED", state.getStatus());
+        assertNull(state.getObservedAt());
+        assertNull(state.getItems());
+    }
 }

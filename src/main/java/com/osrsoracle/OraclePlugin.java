@@ -149,6 +149,13 @@ public class OraclePlugin extends Plugin
 	                ObservedItemContainerState.Scope.ACTIVITY,
 	                true
 	        );
+  private final ObservedItemContainerState cachedGravestoneStorageState =
+          new ObservedItemContainerState(
+                  "gravestoneStorage",
+                  ObservedItemContainerState.Scope.ACCOUNT,
+                  false
+          );
+
 
 	private final ObservedItemContainerState cachedLootingBagState =
 	        new ObservedItemContainerState(
@@ -289,6 +296,7 @@ public class OraclePlugin extends Plugin
 		cachedGimStorageState.reset();
 		cachedCoxPrivateStorageState.reset();
 		cachedCoxSharedStorageState.reset();
+		cachedGravestoneStorageState.reset();
 		cachedLootingBagState.reset();
 		cachedSeedBoxState.reset();
 		cachedTackleBoxState.reset();
@@ -1487,6 +1495,11 @@ public class OraclePlugin extends Plugin
 			state = cachedCoxSharedStorageState;
 			snapshotReason = "COX_SHARED_STORAGE";
 		}
+          else if (containerId == InventoryID.GRAVESTONE)
+          {
+                  state = cachedGravestoneStorageState;
+                  snapshotReason = "GRAVESTONE_STORAGE";
+          }
 		else if (containerId == InventoryID.LOOTING_BAG)
 		{
 			state = cachedLootingBagState;
@@ -2192,6 +2205,7 @@ public class OraclePlugin extends Plugin
 						cachedGimStorageState.getObservedAt(),
 						cachedCoxPrivateStorageState.getObservedAt(),
 						cachedCoxSharedStorageState.getObservedAt(),
+						cachedGravestoneStorageState.getObservedAt(),
 						cachedLootingBagState.getObservedAt(),
 						cachedSeedBoxState.getObservedAt(),
 						cachedTackleBoxState.getObservedAt(),
@@ -2220,6 +2234,9 @@ public class OraclePlugin extends Plugin
 
 		String coxSharedStorageJson =
 				observedItemContainerPayload(cachedCoxSharedStorageState);
+          String gravestoneStorageJson =
+                          observedItemContainerPayload(cachedGravestoneStorageState);
+
 
 		String lootingBagJson =
 				observedItemContainerPayload(cachedLootingBagState);
@@ -2813,6 +2830,7 @@ public class OraclePlugin extends Plugin
 								"\"gimStorage\":%s," +
 								"\"coxPrivateStorage\":%s," +
 								"\"coxSharedStorage\":%s," +
+								"\"gravestoneStorage\":%s," +
 								"\"lootingBag\":%s," +
 								"\"seedBox\":%s," +
 								"\"tackleBox\":%s," +
@@ -2856,6 +2874,7 @@ public class OraclePlugin extends Plugin
 						gimStorageJson,
 						coxPrivateStorageJson,
 						coxSharedStorageJson,
+						gravestoneStorageJson,
 						lootingBagJson,
 						seedBoxJson,
 						tackleBoxJson,

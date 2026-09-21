@@ -22,6 +22,7 @@ public class SnapshotEvidenceTest
                         "2026-09-20T19:57:00Z",
                         "2026-09-20T19:58:00Z",
                         "2026-09-20T19:59:00Z",
+                        "2026-09-20T19:59:50Z",
                         "2026-09-20T19:59:51Z",
                         "2026-09-20T19:59:52Z",
                         "2026-09-20T19:59:53Z",
@@ -64,6 +65,10 @@ public class SnapshotEvidenceTest
         assertTrue(json.contains(
                 "\"coxSharedStorage\":{\"status\":\"OBSERVED\"," +
                         "\"observedAt\":\"2026-09-20T19:59:00Z\"}"
+        ));
+        assertTrue(json.contains(
+                "\"gravestoneStorage\":{\"status\":\"OBSERVED\"," +
+                        "\"observedAt\":\"2026-09-20T19:59:50Z\"}"
         ));
         assertTrue(json.contains(
                 "\"lootingBag\":{\"status\":\"OBSERVED\"," +
@@ -111,6 +116,7 @@ public class SnapshotEvidenceTest
                         1,
                         false,
                         false,
+                        null,
                         null,
                         null,
                         null,
