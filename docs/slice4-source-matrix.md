@@ -1,4 +1,4 @@
-# Slice 4 â€” Resource, Capability, Container, and Unlock Source Matrix
+# Slice 4 — Resource, Capability, Container, and Unlock Source Matrix
 
 Status: IN PROGRESS
 Branch: codex/resources-unlocks-containers
@@ -17,36 +17,47 @@ The client MUST NOT:
 
 ## Scope classes
 
-- GLOBAL â€” persistent character state readable during normal live snapshots
-- ACCOUNT_STORAGE â€” persistent resources belonging to the character outside the normal bank
-- OBSERVED_CONTAINER â€” contents are authoritative only after RuneLite actually observes the container
-- GROUP_STORAGE â€” resources shared by a GIM group
-- ACTIVITY_STORAGE â€” raid/minigame scoped resources
-- ITEM_STATE â€” state tied to a positively identified item
-- DERIVED_SERVER_SIDE â€” client reports factual inputs; platform derives meaning
-- SPECIAL_SYNC â€” deliberately synchronized state not appropriate for heartbeat polling
-- NEEDS_PROOF â€” source identified, semantics still require validation
+- GLOBAL — persistent character state readable during normal live snapshots
+- ACCOUNT_STORAGE — persistent resources belonging to the character outside the normal bank
+- OBSERVED_CONTAINER — contents are authoritative only after RuneLite actually observes the container
+- GROUP_STORAGE — resources shared by a GIM group
+- ACTIVITY_STORAGE — raid/minigame scoped resources
+- ITEM_STATE — state tied to a positively identified item
+- DERIVED_SERVER_SIDE — client reports factual inputs; platform derives meaning
+- SPECIAL_SYNC — deliberately synchronized state not appropriate for heartbeat polling
+
+## Status semantics
+
+- IMPLEMENTED — wired into the current client payload
+- IMPLEMENTED_SOURCE_PROVEN — wired and source/observation semantics are corroborated by first-party RuneLite behavior
+- IMPLEMENTED_NEEDS_RUNTIME_PROOF — wired conservatively, but real-client/runtime behavior still needs independent confirmation
+- READY — source validated and ready to wire
+- NEEDS_PROOF — source identified, but semantics still require validation
+- NEEDS_OBSERVATION_PROOF — source identified, but authoritative observation behavior is not yet proven
+- NEEDS_DECODER — source exists, but its encoding still requires decoding
+- NEEDS_DESIGN — the synchronization or interaction model is not yet locked
+- EXCLUDED_FROM_OWNERSHIP — intentionally not treated as current owned state
 
 ## Global resources and currencies
 
 | Dataset | RuneLite/Jagex source | Scope | Status |
 |---|---|---|---|
-| Slayer points | VarbitID.SLAYER_POINTS | GLOBAL | READY |
-| Slayer task streak | VarbitID.SLAYER_TASKS_COMPLETED | GLOBAL | READY |
-| NMZ reward points | VarPlayerID.NZONE_REWARDPOINTS | GLOBAL | READY |
-| Tithe Farm points | VarbitID.HOSIDIUS_TITHE_REWARDPOINTS | GLOBAL | READY |
-| Soul Wars zeal | VarPlayerID.SOUL_WARS_ZEAL | GLOBAL | READY |
-| Giants' Foundry points | VarPlayerID.GIANTS_FOUNDRY_REWARD_SHOP_POINTS | GLOBAL | READY |
-| Mastering Mixology Mox | VarPlayerID.MIXOLOGY_MOX_POINTS | GLOBAL | READY |
-| Mastering Mixology Aga | VarPlayerID.MIXOLOGY_AGA_POINTS | GLOBAL | READY |
-| Mastering Mixology Lye | VarPlayerID.MIXOLOGY_LYE_POINTS | GLOBAL | READY |
-| Camdozaal stored Barronite | VarPlayerID.CAMDOZAAL_STORED_BARRONITE | ACCOUNT_STORAGE | READY |
-| Scar essence mine coffer | VarPlayerID.SCAR_ESSENCEMINE_COFFER | ACCOUNT_STORAGE | READY |
-| Colosseum glory | VarPlayerID.COLOSSEUM_GLORY | GLOBAL | READY |
-| Barbarian Assault role points | BARBASSAULT_POINTS_* | GLOBAL | READY |
-| Bounty Hunter points | VarPlayerID.BH_2023_POINTS | GLOBAL | READY |
+| Slayer points | VarbitID.SLAYER_POINTS | GLOBAL | IMPLEMENTED |
+| Slayer task streak | VarbitID.SLAYER_TASKS_COMPLETED | GLOBAL | IMPLEMENTED |
+| NMZ reward points | VarPlayerID.NZONE_REWARDPOINTS | GLOBAL | IMPLEMENTED |
+| Tithe Farm points | VarbitID.HOSIDIUS_TITHE_REWARDPOINTS | GLOBAL | IMPLEMENTED |
+| Soul Wars zeal | VarPlayerID.SOUL_WARS_ZEAL | GLOBAL | IMPLEMENTED |
+| Giants' Foundry points | VarPlayerID.GIANTS_FOUNDRY_REWARD_SHOP_POINTS | GLOBAL | IMPLEMENTED |
+| Mastering Mixology Mox | VarPlayerID.MIXOLOGY_MOX_POINTS | GLOBAL | IMPLEMENTED |
+| Mastering Mixology Aga | VarPlayerID.MIXOLOGY_AGA_POINTS | GLOBAL | IMPLEMENTED |
+| Mastering Mixology Lye | VarPlayerID.MIXOLOGY_LYE_POINTS | GLOBAL | IMPLEMENTED |
+| Camdozaal stored Barronite | VarPlayerID.CAMDOZAAL_STORED_BARRONITE | ACCOUNT_STORAGE | IMPLEMENTED |
+| Scar essence mine coffer | VarPlayerID.SCAR_ESSENCEMINE_COFFER | ACCOUNT_STORAGE | IMPLEMENTED |
+| Colosseum glory | VarPlayerID.COLOSSEUM_GLORY | GLOBAL | IMPLEMENTED |
+| Barbarian Assault role points | BARBASSAULT_POINTS_* | GLOBAL | IMPLEMENTED |
+| Bounty Hunter points | VarPlayerID.BH_2023_POINTS | GLOBAL | IMPLEMENTED |
 | Motherlode sack quantity | VarbitID.MOTHERLODE_SACK_TRANSMIT + RuneLite Motherlode map-region context | ACTIVITY_STORAGE / CONTEXTUAL | IMPLEMENTED_SOURCE_PROVEN |
-| Motherlode sack upgrade | VarbitID.MOTHERLODE_BIGGERSACK | GLOBAL | READY |
+| Motherlode sack upgrade | VarbitID.MOTHERLODE_BIGGERSACK | GLOBAL | IMPLEMENTED |
 | GOTR persistent/reward state | GOTR_* persistent vars | GLOBAL | NEEDS_PROOF |
 | MTA currencies/state | MAGICTRAINING_* vars | GLOBAL | NEEDS_PROOF |
 
@@ -54,26 +65,26 @@ The client MUST NOT:
 
 | Dataset | Source | Scope | Status |
 |---|---|---|---|
-| Slayer unlock words | SLAYER_REWARDS_UNLOCKS / 1 / 2 | GLOBAL | READY |
-| Slayer stored-task unlock/state | SLAYER_UNLOCK_STORAGE + SLAYER_STORED_VARP | GLOBAL | READY |
-| Rigour | PRAYER_RIGOUR_UNLOCKED | GLOBAL | READY |
-| Augury | PRAYER_AUGURY_UNLOCKED | GLOBAL | READY |
-| Preserve | PRAYER_PRESERVE_UNLOCKED | GLOBAL | READY |
-| Deadeye | PRAYER_DEADEYE_UNLOCKED | GLOBAL | READY |
-| Mystic Vigour | PRAYER_MYSTIC_VIGOUR_UNLOCKED | GLOBAL | READY |
+| Slayer unlock words | SLAYER_REWARDS_UNLOCKS / 1 / 2 | GLOBAL | IMPLEMENTED |
+| Slayer stored-task unlock/state | SLAYER_UNLOCK_STORAGE + SLAYER_STORED_VARP | GLOBAL | IMPLEMENTED |
+| Rigour | PRAYER_RIGOUR_UNLOCKED | GLOBAL | IMPLEMENTED |
+| Augury | PRAYER_AUGURY_UNLOCKED | GLOBAL | IMPLEMENTED |
+| Preserve | PRAYER_PRESERVE_UNLOCKED | GLOBAL | IMPLEMENTED |
+| Deadeye | PRAYER_DEADEYE_UNLOCKED | GLOBAL | IMPLEMENTED |
+| Mystic Vigour | PRAYER_MYSTIC_VIGOUR_UNLOCKED | GLOBAL | IMPLEMENTED |
 | Piety / Chivalry | KR_KNIGHTWAVES_STATE + existing quest/stat evidence | DERIVED_SERVER_SIDE | NEEDS_PROOF |
-| Current spellbook | SPELLBOOK + SPELLBOOK_SUBLIST | GLOBAL | READY |
-| Prayer book | VarbitID.PRAYERBOOK | GLOBAL | READY |
-| Arceuus spellbook unlocked | ARCEUUS_SPELLBOOK_UNLOCKED | GLOBAL | READY |
-| Bones to Peaches | MAGICTRAINING_BONESPEACHES | GLOBAL | READY |
-| Auto-weed | FARMING_BLOCKWEEDS | GLOBAL | READY |
-| Quetzal destinations | QUETZAL_* destination vars + QUETZALS_UNLOCKED | GLOBAL | READY |
-| Lovakengj minecarts | LOVAKENGJ_MINECARTS_STATUS | GLOBAL | READY |
-| Fairy-ring permission | FAIRYRING_PERMISSION | GLOBAL | READY |
-| Fairy-ring CIS unlock | ZEAH_FAIRYRING_CIS_UNLOCKED | GLOBAL | READY |
+| Current spellbook | SPELLBOOK + SPELLBOOK_SUBLIST | GLOBAL | IMPLEMENTED |
+| Prayer book | VarbitID.PRAYERBOOK | GLOBAL | IMPLEMENTED |
+| Arceuus spellbook unlocked | ARCEUUS_SPELLBOOK_UNLOCKED | GLOBAL | IMPLEMENTED |
+| Bones to Peaches | MAGICTRAINING_BONESPEACHES | GLOBAL | IMPLEMENTED |
+| Auto-weed | FARMING_BLOCKWEEDS | GLOBAL | IMPLEMENTED |
+| Quetzal destinations | QUETZAL_* destination vars + QUETZALS_UNLOCKED | GLOBAL | IMPLEMENTED |
+| Lovakengj minecarts | LOVAKENGJ_MINECARTS_STATUS | GLOBAL | IMPLEMENTED |
+| Fairy-ring permission | FAIRYRING_PERMISSION | GLOBAL | IMPLEMENTED |
+| Fairy-ring CIS unlock | ZEAH_FAIRYRING_CIS_UNLOCKED | GLOBAL | IMPLEMENTED |
 | POH Portal Nexus teleports | POH_NEXUS_TELEPORT* | GLOBAL | NEEDS_DECODER |
-| GOTR needle/bag unlock | GOTR_UNLOCKED_NEEDLE / GOTR_BAG_OBTAINED | GLOBAL | READY |
-| Giants' Foundry mould unlocks | GIANTS_FOUNDRY_UNLOCKED_MOULD_* | GLOBAL | READY |
+| GOTR needle/bag unlock | GOTR_UNLOCKED_NEEDLE / GOTR_BAG_OBTAINED | GLOBAL | IMPLEMENTED |
+| Giants' Foundry mould unlocks | GIANTS_FOUNDRY_UNLOCKED_MOULD_* | GLOBAL | IMPLEMENTED |
 
 ## Persistent off-bank storage
 
@@ -83,8 +94,8 @@ The client MUST NOT:
 | Seed Vault | InventoryID.SEED_VAULT | OBSERVED_CONTAINER | IMPLEMENTED |
 | Tool Leprechaun | FARMING_TOOLS_* varbits | ACCOUNT_STORAGE | NEEDS_OBSERVATION_PROOF |
 | Potion storage | POTIONSTORE_BUILD / POTIONSTORE_DOSE_CHANGE + Bankmain.POTIONSTORE_ITEMS + POTIONSTORE_VIALS | ACCOUNT_STORAGE / OBSERVED_UI | IMPLEMENTED_SOURCE_PROVEN |
-| Rune pouch | RUNE_POUCH_TYPE_1..6 + QUANTITY_1..6 | ITEM_STATE | READY_LIVE |
-| Essence pouches | essence pouch amount/type/degradation vars | ITEM_STATE | READY_LIVE |
+| Rune pouch | RUNE_POUCH_TYPE_1..6 + QUANTITY_1..6 | ITEM_STATE | IMPLEMENTED_SOURCE_PROVEN |
+| Essence pouches | essence pouch amount/type/degradation vars | ITEM_STATE | IMPLEMENTED_SOURCE_PROVEN |
 | Bolt pouch | XBOWS_POUCH slot/quantity vars | ITEM_STATE | NEEDS_OBSERVATION_PROOF |
 | Plank sack | PLANK_SACK_* vars | ACCOUNT_STORAGE | NEEDS_OBSERVATION_PROOF |
 | Master scroll book | BOOKOFSCROLLS* vars | ACCOUNT_STORAGE | NEEDS_DECODER |
@@ -93,19 +104,19 @@ The client MUST NOT:
 | Clue scroll case | SCROLL_CASE_* vars | ACCOUNT_STORAGE | NEEDS_OBSERVATION_PROOF |
 | TOA stored pickaxe | TOA_PICKAXE_STORAGE | ACCOUNT_STORAGE | NEEDS_OBSERVATION_PROOF |
 | Dizana's quiver ammo var state | DIZANAS_QUIVER_TEMP_AMMO / DIZANAS_QUIVER_TEMP_AMMO_AMOUNT + quiver-capable item context | ITEM_STATE | IMPLEMENTED_SOURCE_PROVEN |
-| Pre-pot device / chugging loadouts | PREPOT_DEVICE_* vars | ACCOUNT_STORAGE | READY |
-| POH Costume Room | POH costume inventories | OBSERVED_CONTAINER | READY |
+| Pre-pot device / chugging loadouts | PREPOT_DEVICE_* vars | ACCOUNT_STORAGE | NEEDS_PROOF |
+| POH Costume Room | POH costume inventories | OBSERVED_CONTAINER | NEEDS_OBSERVATION_PROOF |
 | STASH units | WATSON_STASH_UNIT_CHECK | SPECIAL_SYNC | NEEDS_DESIGN |
 
 ## Observed containers
 
 | Container | Inventory source | Scope | Status |
 |---|---|---|---|
-| Seed box | SEED_BOX | OBSERVED_CONTAINER | NEEDS_PROOF |
-| Tackle box | TACKLE_BOX | OBSERVED_CONTAINER | NEEDS_PROOF |
-| Forestry kit | FORESTRY_KIT | OBSERVED_CONTAINER | NEEDS_PROOF |
-| Huntsman's kit | HUNTSMANS_KIT | OBSERVED_CONTAINER | NEEDS_PROOF |
-| Looting bag | LOOTING_BAG | OBSERVED_CONTAINER | NEEDS_PROOF |
+| Seed box | SEED_BOX | OBSERVED_CONTAINER | IMPLEMENTED_NEEDS_RUNTIME_PROOF |
+| Tackle box | TACKLE_BOX | OBSERVED_CONTAINER | IMPLEMENTED_NEEDS_RUNTIME_PROOF |
+| Forestry kit | FORESTRY_KIT | OBSERVED_CONTAINER | IMPLEMENTED_NEEDS_RUNTIME_PROOF |
+| Huntsman's kit | HUNTSMANS_KIT | OBSERVED_CONTAINER | IMPLEMENTED_NEEDS_RUNTIME_PROOF |
+| Looting bag | LOOTING_BAG | OBSERVED_CONTAINER | IMPLEMENTED_NEEDS_RUNTIME_PROOF |
 | Dizana quiver ammo container | DIZANAS_QUIVER_AMMO | OBSERVED_CONTAINER | NEEDS_PROOF |
 | Dizana quiver charges | no standalone source-proven charge variable identified | ITEM_STATE | NEEDS_PROOF |
 | GIM shared storage | INV_GROUP_TEMP / group storage inventory | GROUP_STORAGE | IMPLEMENTED_SOURCE_PROVEN |
@@ -116,7 +127,7 @@ The client MUST NOT:
 | CoX private storage | RAIDS_PRIVATESTORAGE | ACCOUNT_STORAGE / OBSERVED_CONTAINER | IMPLEMENTED_SOURCE_PROVEN |
 | CoX shared storage | RAIDS_SHAREDSTORAGE | ACTIVITY_STORAGE / SHARED | IMPLEMENTED_SOURCE_PROVEN |
 | Forestry log storage | FORESTRY_SHOP_LOG_STORAGE | OBSERVED_CONTAINER | NEEDS_PROOF |
-| Barbarian knapsack | BARBARIAN_KNAPSACK | OBSERVED_CONTAINER | NEEDS_PROOF |
+| Barbarian knapsack | BARBARIAN_KNAPSACK | OBSERVED_CONTAINER | IMPLEMENTED_NEEDS_RUNTIME_PROOF |
 
 ## GIM rules
 
