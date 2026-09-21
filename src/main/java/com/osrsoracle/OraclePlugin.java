@@ -31,6 +31,7 @@ import net.runelite.api.events.ScriptPreFired;
 
 import net.runelite.api.gameval.DBTableID;
 import net.runelite.api.gameval.VarPlayerID;
+import net.runelite.api.gameval.VarbitID;
 import net.runelite.api.gameval.ItemID;
 import net.runelite.api.gameval.InventoryID;
 import net.runelite.api.gameval.InterfaceID;
@@ -58,6 +59,7 @@ import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.StringJoiner;
 
 
@@ -77,6 +79,18 @@ public class OraclePlugin extends Plugin
 	private final HttpClient httpClient = HttpClient.newHttpClient();
 
     private static final long MIN_UPLOAD_INTERVAL_MS = 1000L;
+
+    private static final Set<Integer> MOTHERLODE_MAP_REGIONS = Set.of(
+            14679,
+            14680,
+            14681,
+            14935,
+            14936,
+            14937,
+            15191,
+            15192,
+            15193
+    );
 
     private static final String[] ACCOUNT_TYPE_NAMES = {
         "NORMAL",
@@ -158,6 +172,9 @@ public class OraclePlugin extends Plugin
           );
   private final ObservedPotionStorageState cachedPotionStorageState =
           new ObservedPotionStorageState();
+  private final ObservedMotherlodeSackState cachedMotherlodeSackState =
+          new ObservedMotherlodeSackState();
+
 
 
 
@@ -302,6 +319,7 @@ public class OraclePlugin extends Plugin
 		cachedCoxSharedStorageState.reset();
 		cachedGravestoneStorageState.reset();
 		cachedPotionStorageState.reset();
+		cachedMotherlodeSackState.reset();
 		cachedLootingBagState.reset();
 		cachedSeedBoxState.reset();
 		cachedTackleBoxState.reset();
@@ -373,6 +391,14 @@ public class OraclePlugin extends Plugin
 			pendingEntrySnapshotReason = entryIntentReason;
 			entryIntentReason = null;
 		}
+
+          if (newState == GameState.LOGGED_IN)
+          {
+                  observeMotherlodeSack(
+                                  "MOTHERLODE_SACK_ENTRY",
+                                  false
+                  );
+          }
 	}
 
 
@@ -1752,7 +1778,18 @@ public class OraclePlugin extends Plugin
 	                        true
 	                );
 	        }
-	}
+
+          if (
+                          event.getVarbitId() ==
+                                          VarbitID.MOTHERLODE_SACK_TRANSMIT
+          )
+          {
+                  observeMotherlodeSack(
+                                  "MOTHERLODE_SACK",
+                                  true
+                  );
+          }
+  }
 
 	@Subscribe
 	public void onWidgetLoaded(
@@ -1779,6 +1816,77 @@ public class OraclePlugin extends Plugin
 		}
 	}
 
+
+  private boolean isInMotherlodeMine()
+  {
+          GameState gameState =
+                          client.getGameState();
+
+          if (
+                          gameState != GameState.LOGGED_IN &&
+                                          gameState != GameState.LOADING
+          )
+          {
+                  return false;
+          }
+
+          int[] mapRegions =
+                          client.getMapRegions();
+
+          if (
+                          mapRegions == null ||
+                                          mapRegions.length == 0
+          )
+          {
+                  return false;
+          }
+
+          for (int region : mapRegions)
+          {
+                  if (!MOTHERLODE_MAP_REGIONS.contains(region))
+                  {
+                          return false;
+                  }
+          }
+
+          return true;
+  }
+
+
+  private void observeMotherlodeSack(
+          String snapshotReason,
+          boolean requestUpload
+  )
+  {
+          if (!isInMotherlodeMine())
+          {
+                  return;
+          }
+
+          int quantity =
+                          client.getVarbitValue(
+                                          VarbitID.MOTHERLODE_SACK_TRANSMIT
+                          );
+
+          if (quantity < 0)
+          {
+                  return;
+          }
+
+          boolean accepted =
+                          cachedMotherlodeSackState.observe(
+                                          quantity,
+                                          Instant.now().toString()
+                          );
+
+          if (
+                          accepted &&
+                                          requestUpload
+          )
+          {
+                  requestSnapshot(snapshotReason);
+          }
+  }
 
 	private void observeDizanasQuiverAmmoIfContext(
 	        String snapshotReason,
@@ -1853,6 +1961,21 @@ public class OraclePlugin extends Plugin
 
 	        return false;
 	}
+
+  private String observedMotherlodeSackPayload(
+          ObservedMotherlodeSackState state
+  )
+  {
+          if (!state.hasObservation())
+          {
+                  return "{\"scope\":\"ACTIVITY\",\"ownership\":\"PERSONAL\",\"quantity\":null}";
+          }
+
+          return String.format(
+                          "{\"scope\":\"ACTIVITY\",\"ownership\":\"PERSONAL\",\"quantity\":%d}",
+                          state.getQuantity()
+          );
+  }
 
   private String observedPotionStoragePayload(
           ObservedPotionStorageState state
@@ -2425,6 +2548,7 @@ public class OraclePlugin extends Plugin
 						cachedCoxSharedStorageState.getObservedAt(),
 						cachedGravestoneStorageState.getObservedAt(),
 						cachedPotionStorageState.getObservedAt(),
+						cachedMotherlodeSackState.getObservedAt(),
 						cachedLootingBagState.getObservedAt(),
 						cachedSeedBoxState.getObservedAt(),
 						cachedTackleBoxState.getObservedAt(),
@@ -2457,6 +2581,9 @@ public class OraclePlugin extends Plugin
                           observedItemContainerPayload(cachedGravestoneStorageState);
           String potionStorageJson =
                           observedPotionStoragePayload(cachedPotionStorageState);
+          String motherlodeSackJson =
+                          observedMotherlodeSackPayload(cachedMotherlodeSackState);
+
 
 
 
@@ -3054,6 +3181,7 @@ public class OraclePlugin extends Plugin
 								"\"coxSharedStorage\":%s," +
 								"\"gravestoneStorage\":%s," +
 								"\"potionStorage\":%s," +
+								"\"motherlodeSack\":%s," +
 								"\"lootingBag\":%s," +
 								"\"seedBox\":%s," +
 								"\"tackleBox\":%s," +
@@ -3099,6 +3227,7 @@ public class OraclePlugin extends Plugin
 						coxSharedStorageJson,
 						gravestoneStorageJson,
 						potionStorageJson,
+						motherlodeSackJson,
 						lootingBagJson,
 						seedBoxJson,
 						tackleBoxJson,

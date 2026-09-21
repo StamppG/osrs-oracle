@@ -45,7 +45,7 @@ The client MUST NOT:
 | Colosseum glory | VarPlayerID.COLOSSEUM_GLORY | GLOBAL | READY |
 | Barbarian Assault role points | BARBASSAULT_POINTS_* | GLOBAL | READY |
 | Bounty Hunter points | VarPlayerID.BH_2023_POINTS | GLOBAL | READY |
-| Motherlode sack quantity | VarbitID.MOTHERLODE_SACK_TRANSMIT | ACTIVITY_STORAGE | NEEDS_PROOF |
+| Motherlode sack quantity | VarbitID.MOTHERLODE_SACK_TRANSMIT + RuneLite Motherlode map-region context | ACTIVITY_STORAGE / CONTEXTUAL | IMPLEMENTED_SOURCE_PROVEN |
 | Motherlode sack upgrade | VarbitID.MOTHERLODE_BIGGERSACK | GLOBAL | READY |
 | GOTR persistent/reward state | GOTR_* persistent vars | GLOBAL | NEEDS_PROOF |
 | MTA currencies/state | MAGICTRAINING_* vars | GLOBAL | NEEDS_PROOF |
