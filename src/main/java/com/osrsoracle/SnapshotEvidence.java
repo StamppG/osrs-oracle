@@ -42,11 +42,13 @@ final class SnapshotEvidence
             String dizanasQuiverAmmoObservedAt,
             String collectionLogObservedAt,
             int collectionLogPages,
-            String collectionLogInstantObservedAt
+            String collectionLogInstantObservedAt,
+            String stashUnitsObservedAt
     )
     {
         String mode =
-                "CLOG_MANUAL".equals(trigger)
+                ("CLOG_MANUAL".equals(trigger) ||
+                        "STASH_MANUAL".equals(trigger))
                         ? "MANUAL"
                         : "AUTOMATIC";
 
@@ -155,6 +157,11 @@ final class SnapshotEvidence
                         dizanasQuiverAmmoObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
                         dizanasQuiverAmmoObservedAt
                 ) +
+                ",\"stashUnits\":" +
+                observation(
+                        stashUnitsObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
+                        stashUnitsObservedAt
+                ) +
                 ",\"collectionLogPages\":{\"status\":" +
                 jsonString(
                         collectionLogPages == 0
@@ -171,6 +178,64 @@ final class SnapshotEvidence
                         collectionLogInstantObservedAt
                 ) +
                 "}}";
+    }
+
+    static String collect(
+            String observedAt,
+            String trigger,
+            String sessionId,
+            long sequence,
+            boolean inventoryObserved,
+            boolean equipmentObserved,
+            String bankObservedAt,
+            String seedVaultObservedAt,
+            String gimStorageObservedAt,
+            String coxPrivateStorageObservedAt,
+            String coxSharedStorageObservedAt,
+            String gravestoneStorageObservedAt,
+            String deathsOfficeStorageObservedAt,
+            String potionStorageObservedAt,
+            String motherlodeSackObservedAt,
+            String lootingBagObservedAt,
+            String seedBoxObservedAt,
+            String tackleBoxObservedAt,
+            String forestryKitObservedAt,
+            String huntsmansKitObservedAt,
+            String barbarianKnapsackObservedAt,
+            String dizanasQuiverAmmoObservedAt,
+            String collectionLogObservedAt,
+            int collectionLogPages,
+            String collectionLogInstantObservedAt
+    )
+    {
+        return collect(
+                observedAt,
+                trigger,
+                sessionId,
+                sequence,
+                inventoryObserved,
+                equipmentObserved,
+                bankObservedAt,
+                seedVaultObservedAt,
+                gimStorageObservedAt,
+                coxPrivateStorageObservedAt,
+                coxSharedStorageObservedAt,
+                gravestoneStorageObservedAt,
+                deathsOfficeStorageObservedAt,
+                potionStorageObservedAt,
+                motherlodeSackObservedAt,
+                lootingBagObservedAt,
+                seedBoxObservedAt,
+                tackleBoxObservedAt,
+                forestryKitObservedAt,
+                huntsmansKitObservedAt,
+                barbarianKnapsackObservedAt,
+                dizanasQuiverAmmoObservedAt,
+                collectionLogObservedAt,
+                collectionLogPages,
+                collectionLogInstantObservedAt,
+                null
+        );
     }
 
     private static String observation(

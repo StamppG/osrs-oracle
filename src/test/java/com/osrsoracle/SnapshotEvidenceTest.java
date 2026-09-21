@@ -114,6 +114,10 @@ public class SnapshotEvidenceTest
                         "\"observedAt\":\"2026-09-20T19:59:57Z\"}"
         ));
         assertTrue(json.contains(
+                "\"stashUnits\":{\"status\":\"NOT_OBSERVED\"," +
+                        "\"observedAt\":null}"
+        ));
+        assertTrue(json.contains(
                 "\"collectionLogPages\":{\"status\":\"PARTIAL\"," +
                         "\"observedAt\":\"2026-09-20T19:50:00Z\"," +
                         "\"pagesObserved\":3}"
@@ -164,6 +168,52 @@ public class SnapshotEvidenceTest
         assertTrue(json.contains(
                 "\"collectionLogInstant\":{\"status\":\"OBSERVED\"," +
                         "\"observedAt\":\"2026-09-20T20:00:00Z\"}"
+        ));
+    }
+    @Test
+    public void reportsManualStashCoverage()
+    {
+        String json =
+                SnapshotEvidence.collect(
+                        "2026-09-20T21:00:00Z",
+                        "STASH_MANUAL",
+                        "session-stash",
+                        9,
+                        false,
+                        false,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        0,
+                        null,
+                        "2026-09-20T20:59:59Z"
+                );
+
+        assertTrue(json.contains(
+                "\"trigger\":\"STASH_MANUAL\""
+        ));
+
+        assertTrue(json.contains(
+                "\"mode\":\"MANUAL\""
+        ));
+
+        assertTrue(json.contains(
+                "\"stashUnits\":{\"status\":\"OBSERVED\"," +
+                        "\"observedAt\":\"2026-09-20T20:59:59Z\"}"
         ));
     }
 }

@@ -47,6 +47,7 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.cluescrolls.clues.emote.STASHUnit;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -79,6 +80,7 @@ public class OraclePlugin extends Plugin
 	private final HttpClient httpClient = HttpClient.newHttpClient();
 
     private static final long MIN_UPLOAD_INTERVAL_MS = 1000L;
+    private static final int STASH_SYNC_BATCH_SIZE = 8;
 
     private static final Set<Integer> MOTHERLODE_MAP_REGIONS = Set.of(
             14679,
@@ -226,6 +228,16 @@ public class OraclePlugin extends Plugin
 	                false
 	        );
 
+	private final ObservedStashState cachedStashState =
+	        new ObservedStashState();
+
+	private final List<ObservedStashState.Entry> pendingStashSyncEntries =
+	        new ArrayList<>();
+
+	private boolean manualStashSyncActive = false;
+	private int manualStashSyncIndex = 0;
+	private String manualStashSyncAccount = null;
+
 	private final ObservedQuiverAmmoState cachedDizanasQuiverAmmoState =
 	        new ObservedQuiverAmmoState();
 
@@ -334,6 +346,11 @@ public class OraclePlugin extends Plugin
 		cachedHuntsmansKitState.reset();
 		cachedBarbarianKnapsackState.reset();
 		cachedDizanasQuiverAmmoState.reset();
+		cachedStashState.reset();
+		pendingStashSyncEntries.clear();
+		manualStashSyncActive = false;
+		manualStashSyncIndex = 0;
+		manualStashSyncAccount = null;
 		lastCollectionCaptureTime = 0;
 		cachedCollectionLogCapturedAt = null;
 		cachedCollectionLogPages.clear();
@@ -417,6 +434,8 @@ public class OraclePlugin extends Plugin
 		{
 			return;
 		}
+
+		advanceManualStashSync();
 
 		/*
 		 * BANK CACHE
@@ -1251,6 +1270,244 @@ public class OraclePlugin extends Plugin
                   requestSnapshot("POTION_STORAGE");
           }
   }
+
+	boolean startManualStashSync()
+	{
+		if (
+			manualStashSyncActive ||
+			client.getLocalPlayer() == null
+		)
+		{
+			return false;
+		}
+
+		String account =
+			client.getLocalPlayer().getName();
+
+		if (
+			account == null ||
+			account.isBlank()
+		)
+		{
+			return false;
+		}
+
+		pendingStashSyncEntries.clear();
+		manualStashSyncIndex = 0;
+		manualStashSyncAccount = account;
+		manualStashSyncActive = true;
+
+		log.info(
+			"STASH MANUAL START: account={} totalUnits={}",
+			manualStashSyncAccount,
+			STASHUnit.values().length
+		);
+
+		return true;
+	}
+
+
+	boolean isManualStashSyncActive()
+	{
+		return manualStashSyncActive;
+	}
+
+
+	int getManualStashSyncProgress()
+	{
+		return manualStashSyncIndex;
+	}
+
+
+	int getManualStashSyncTotal()
+	{
+		return STASHUnit.values().length;
+	}
+
+
+	String getStashLastSyncedAt()
+	{
+		return cachedStashState.getObservedAt();
+	}
+
+
+	private void advanceManualStashSync()
+	{
+		if (!manualStashSyncActive)
+		{
+			return;
+		}
+
+		if (client.getLocalPlayer() == null)
+		{
+			abortManualStashSync(
+				"local player unavailable"
+			);
+			return;
+		}
+
+		String currentAccount =
+			client.getLocalPlayer().getName();
+
+		if (
+			currentAccount == null ||
+			!currentAccount.equals(manualStashSyncAccount)
+		)
+		{
+			abortManualStashSync(
+				"character changed during STASH sync"
+			);
+			return;
+		}
+
+		STASHUnit[] units =
+			STASHUnit.values();
+
+		int processedThisTick = 0;
+
+		while (
+			manualStashSyncIndex < units.length &&
+			processedThisTick < STASH_SYNC_BATCH_SIZE
+		)
+		{
+			STASHUnit unit =
+				units[manualStashSyncIndex];
+
+			try
+			{
+				client.runScript(
+					ScriptID.WATSON_STASH_UNIT_CHECK,
+					unit.getObjectId(),
+					0,
+					0,
+					0
+				);
+			}
+			catch (RuntimeException ex)
+			{
+				log.warn(
+					"STASH MANUAL script failure: objectId={}",
+					unit.getObjectId(),
+					ex
+				);
+
+				abortManualStashSync(
+					"RuneLite STASH check script failed"
+				);
+
+				return;
+			}
+
+			int[] intStack =
+				client.getIntStack();
+
+			int intStackSize =
+				client.getIntStackSize();
+
+			if (
+				intStack == null ||
+				intStackSize < 2 ||
+				intStack.length < 2
+			)
+			{
+				abortManualStashSync(
+					"STASH check returned fewer than two values"
+				);
+				return;
+			}
+
+			int builtRaw =
+				intStack[0];
+
+			int filledRaw =
+				intStack[1];
+
+			if (
+				(builtRaw != 0 && builtRaw != 1) ||
+				(filledRaw != 0 && filledRaw != 1)
+			)
+			{
+				abortManualStashSync(
+					"STASH check returned non-boolean values"
+				);
+				return;
+			}
+
+			pendingStashSyncEntries.add(
+				new ObservedStashState.Entry(
+					unit.getObjectId(),
+					builtRaw == 1,
+					filledRaw == 1
+				)
+			);
+
+			manualStashSyncIndex++;
+			processedThisTick++;
+		}
+
+		if (manualStashSyncIndex < units.length)
+		{
+			return;
+		}
+
+		String observedAt =
+			Instant.now().toString();
+
+		boolean accepted =
+			cachedStashState.observeComplete(
+				pendingStashSyncEntries,
+				observedAt
+			);
+
+		if (!accepted)
+		{
+			abortManualStashSync(
+				"completed STASH observation was rejected"
+			);
+			return;
+		}
+
+		int syncedUnits =
+			pendingStashSyncEntries.size();
+
+		String syncedAccount =
+			manualStashSyncAccount;
+
+		pendingStashSyncEntries.clear();
+		manualStashSyncIndex = 0;
+		manualStashSyncAccount = null;
+		manualStashSyncActive = false;
+
+		log.info(
+			"STASH MANUAL COMPLETE: account={} units={} observedAt={}",
+			syncedAccount,
+			syncedUnits,
+			observedAt
+		);
+
+		requestSnapshot(
+			"STASH_MANUAL"
+		);
+	}
+
+
+	private void abortManualStashSync(
+		String reason
+	)
+	{
+		log.warn(
+			"STASH MANUAL ABORTED: account={} progress={}/{} reason={}",
+			manualStashSyncAccount,
+			manualStashSyncIndex,
+			STASHUnit.values().length,
+			reason
+		);
+
+		pendingStashSyncEntries.clear();
+		manualStashSyncIndex = 0;
+		manualStashSyncAccount = null;
+		manualStashSyncActive = false;
+	}
 
 	private void startInstantCollectionLogSync()
 	{
@@ -2574,7 +2831,8 @@ public class OraclePlugin extends Plugin
 						cachedDizanasQuiverAmmoState.getObservedAt(),
 						cachedCollectionLogCapturedAt,
 						cachedCollectionLogPages.size(),
-						collectionInstantCapturedAt
+						collectionInstantCapturedAt,
+						cachedStashState.getObservedAt()
 				);
 
 		String diaryTaskStateJson = AchievementDiaryState.collect(client);
@@ -2627,6 +2885,9 @@ public class OraclePlugin extends Plugin
 				observedQuiverAmmoPayload(
 				        cachedDizanasQuiverAmmoState
 				);
+
+		String stashUnitsJson =
+		        cachedStashState.toJson();
 
 		int accountTypeCode =
 				client.getVarbitValue(
@@ -3208,6 +3469,7 @@ public class OraclePlugin extends Plugin
 								"\"huntsmansKit\":%s," +
 								"\"barbarianKnapsack\":%s," +
 								"\"dizanasQuiverAmmo\":%s," +
+                                                          "\"stashUnits\":%s," +
 								"\"equipment\":%s}",
 
 						escapeJson(account),
@@ -3255,6 +3517,7 @@ public class OraclePlugin extends Plugin
 						huntsmansKitJson,
 						barbarianKnapsackJson,
 						dizanasQuiverAmmoJson,
+						stashUnitsJson,
 						equipmentJson
 				);
 

@@ -31,6 +31,7 @@ The client MUST NOT:
 - IMPLEMENTED — wired into the current client payload
 - IMPLEMENTED_SOURCE_PROVEN — wired and source/observation semantics are corroborated by first-party RuneLite behavior
 - IMPLEMENTED_NEEDS_RUNTIME_PROOF — wired conservatively, but real-client/runtime behavior still needs independent confirmation
+- IMPLEMENTED_PENDING_UI — engine, state, payload, evidence, and backend retention are implemented; explicit player-facing trigger is intentionally deferred
 - READY — source validated and ready to wire
 - NEEDS_PROOF — source identified, but semantics still require validation
 - NEEDS_OBSERVATION_PROOF — source identified, but authoritative observation behavior is not yet proven
@@ -106,7 +107,7 @@ The client MUST NOT:
 | Dizana's quiver ammo var state | DIZANAS_QUIVER_TEMP_AMMO / DIZANAS_QUIVER_TEMP_AMMO_AMOUNT + quiver-capable item context | ITEM_STATE | IMPLEMENTED_SOURCE_PROVEN |
 | Pre-pot device / chugging loadouts | PREPOT_DEVICE_* vars | ACCOUNT_STORAGE | NEEDS_PROOF |
 | POH Costume Room | POH costume inventories | OBSERVED_CONTAINER | NEEDS_OBSERVATION_PROOF |
-| STASH units | WATSON_STASH_UNIT_CHECK | SPECIAL_SYNC | NEEDS_DESIGN |
+| STASH units | WATSON_STASH_UNIT_CHECK + RuneLite STASHUnit catalog | SPECIAL_SYNC / MANUAL | IMPLEMENTED_PENDING_UI |
 
 ## Observed containers
 
