@@ -29,10 +29,6 @@ final class SnapshotEvidence
             String gimStorageObservedAt,
             String coxPrivateStorageObservedAt,
             String coxSharedStorageObservedAt,
-            String toaMidraidBundle1ObservedAt,
-            String toaMidraidBundle2ObservedAt,
-            String toaMidraidBundle3ObservedAt,
-            String toaMidraidBagObservedAt,
             String toaRewardChestObservedAt,
             String lootingBagObservedAt,
             String seedBoxObservedAt,
@@ -100,26 +96,6 @@ final class SnapshotEvidence
                 observation(
                         coxSharedStorageObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
                         coxSharedStorageObservedAt
-                ) +
-                ",\"toaMidraidBundle1\":" +
-                observation(
-                        toaMidraidBundle1ObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
-                        toaMidraidBundle1ObservedAt
-                ) +
-                ",\"toaMidraidBundle2\":" +
-                observation(
-                        toaMidraidBundle2ObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
-                        toaMidraidBundle2ObservedAt
-                ) +
-                ",\"toaMidraidBundle3\":" +
-                observation(
-                        toaMidraidBundle3ObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
-                        toaMidraidBundle3ObservedAt
-                ) +
-                ",\"toaMidraidBag\":" +
-                observation(
-                        toaMidraidBagObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
-                        toaMidraidBagObservedAt
                 ) +
                 ",\"toaRewardChest\":" +
                 observation(

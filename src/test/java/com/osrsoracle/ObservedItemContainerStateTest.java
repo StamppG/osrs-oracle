@@ -92,7 +92,7 @@ public class ObservedItemContainerStateTest
         ObservedItemContainerState state =
                 new ObservedItemContainerState(
                         "coxPrivateStorage",
-                        ObservedItemContainerState.Scope.ACTIVITY,
+                        ObservedItemContainerState.Scope.ACCOUNT,
                         false
                 );
 

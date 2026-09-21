@@ -1,4 +1,4 @@
-﻿# Slice 4 Retention and Merge Contract
+# Slice 4 Retention and Merge Contract
 
 Status: LOCKED
 Branch: codex/resources-unlocks-containers
@@ -82,6 +82,7 @@ Examples:
 - Tool Leprechaun
 - potion storage
 - TOA stored pickaxe
+- CoX private storage (personal gear retained until retrieved)
 
 ### GROUP
 Shared GIM state.
@@ -95,8 +96,6 @@ Temporary or raid-scoped state.
 
 Examples:
 - CoX shared storage
-- CoX private raid storage
-- TOA mid-raid supplies
 
 Activity state may be retained for history, but MUST NOT be merged into durable account-owned resource totals.
 
