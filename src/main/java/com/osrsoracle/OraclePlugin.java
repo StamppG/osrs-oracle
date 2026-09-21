@@ -150,13 +150,6 @@ public class OraclePlugin extends Plugin
 	                true
 	        );
 
-	private final ObservedItemContainerState cachedToaRewardChestState =
-	        new ObservedItemContainerState(
-	                "toaRewardChest",
-	                ObservedItemContainerState.Scope.ACTIVITY,
-	                false
-	        );
-
 	private final ObservedItemContainerState cachedLootingBagState =
 	        new ObservedItemContainerState(
 	                "lootingBag",
@@ -296,7 +289,6 @@ public class OraclePlugin extends Plugin
 		cachedGimStorageState.reset();
 		cachedCoxPrivateStorageState.reset();
 		cachedCoxSharedStorageState.reset();
-		cachedToaRewardChestState.reset();
 		cachedLootingBagState.reset();
 		cachedSeedBoxState.reset();
 		cachedTackleBoxState.reset();
@@ -1495,11 +1487,6 @@ public class OraclePlugin extends Plugin
 			state = cachedCoxSharedStorageState;
 			snapshotReason = "COX_SHARED_STORAGE";
 		}
-		else if (containerId == InventoryID.TOA_CHESTS)
-		{
-			state = cachedToaRewardChestState;
-			snapshotReason = "TOA_REWARD_CHEST";
-		}
 		else if (containerId == InventoryID.LOOTING_BAG)
 		{
 			state = cachedLootingBagState;
@@ -2205,7 +2192,6 @@ public class OraclePlugin extends Plugin
 						cachedGimStorageState.getObservedAt(),
 						cachedCoxPrivateStorageState.getObservedAt(),
 						cachedCoxSharedStorageState.getObservedAt(),
-						cachedToaRewardChestState.getObservedAt(),
 						cachedLootingBagState.getObservedAt(),
 						cachedSeedBoxState.getObservedAt(),
 						cachedTackleBoxState.getObservedAt(),
@@ -2234,9 +2220,6 @@ public class OraclePlugin extends Plugin
 
 		String coxSharedStorageJson =
 				observedItemContainerPayload(cachedCoxSharedStorageState);
-
-		String toaRewardChestJson =
-				observedItemContainerPayload(cachedToaRewardChestState);
 
 		String lootingBagJson =
 				observedItemContainerPayload(cachedLootingBagState);
@@ -2830,7 +2813,6 @@ public class OraclePlugin extends Plugin
 								"\"gimStorage\":%s," +
 								"\"coxPrivateStorage\":%s," +
 								"\"coxSharedStorage\":%s," +
-								"\"toaRewardChest\":%s," +
 								"\"lootingBag\":%s," +
 								"\"seedBox\":%s," +
 								"\"tackleBox\":%s," +
@@ -2874,7 +2856,6 @@ public class OraclePlugin extends Plugin
 						gimStorageJson,
 						coxPrivateStorageJson,
 						coxSharedStorageJson,
-						toaRewardChestJson,
 						lootingBagJson,
 						seedBoxJson,
 						tackleBoxJson,

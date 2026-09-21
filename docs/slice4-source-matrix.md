@@ -113,7 +113,6 @@ The client MUST NOT:
 | Death storage | death inventory IDs | ACCOUNT_STORAGE / OBSERVED_CONTAINER | READY |
 | CoX private storage | RAIDS_PRIVATESTORAGE | ACCOUNT_STORAGE / OBSERVED_CONTAINER | IMPLEMENTED_SOURCE_PROVEN |
 | CoX shared storage | RAIDS_SHAREDSTORAGE | ACTIVITY_STORAGE / SHARED | IMPLEMENTED_SOURCE_PROVEN |
-| TOA reward chest | TOA_CHESTS | ACTIVITY_STORAGE | IMPLEMENTED_SOURCE_PROVEN |
 | Forestry log storage | FORESTRY_SHOP_LOG_STORAGE | OBSERVED_CONTAINER | NEEDS_PROOF |
 | Barbarian knapsack | BARBARIAN_KNAPSACK | OBSERVED_CONTAINER | NEEDS_PROOF |
 
@@ -209,3 +208,33 @@ E. Charged-item identity/state
 F. STASH and other special scripted synchronization
 G. Evidence coverage, focused tests, real-client proof
 
+
+## Raid reward history sources
+
+Raid reward openings are not retained current-state containers.
+
+They are future historical event sources whose durable retention belongs to the backend/history architecture.
+
+Source-proven RuneLite observation pairs:
+
+- CoX: InterfaceID.RAIDS_REWARDS + InventoryID.RAIDS_REWARDS
+- ToA: InterfaceID.TOA_CHESTS + InventoryID.TOA_CHESTS
+- ToB: InterfaceID.TOB_CHESTS + InventoryID.TOB_CHESTS
+
+When the historical event pipeline is implemented, the RuneLite client is responsible for:
+
+- observing the reward interface lifecycle
+- reading factual reward item IDs and quantities
+- recording the client observation time
+- triggering an immediate upload
+- suppressing duplicate capture from reopening the same reward lifecycle
+
+The backend is responsible for:
+
+- durable reward-history retention
+- retry deduplication
+- authenticated character ownership
+- ordering and querying history
+- derived classifications such as uniques, purples, value, luck, and dryness
+
+Reward-event contents MUST NOT be merged directly into current bank, inventory, equipment, or storage ownership.
