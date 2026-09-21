@@ -170,6 +170,12 @@ public class OraclePlugin extends Plugin
                   ObservedItemContainerState.Scope.ACCOUNT,
                   false
           );
+  private final ObservedItemContainerState cachedDeathsOfficeStorageState =
+          new ObservedItemContainerState(
+                  "deathsOfficeStorage",
+                  ObservedItemContainerState.Scope.ACCOUNT,
+                  false
+          );
   private final ObservedPotionStorageState cachedPotionStorageState =
           new ObservedPotionStorageState();
   private final ObservedMotherlodeSackState cachedMotherlodeSackState =
@@ -318,6 +324,7 @@ public class OraclePlugin extends Plugin
 		cachedCoxPrivateStorageState.reset();
 		cachedCoxSharedStorageState.reset();
 		cachedGravestoneStorageState.reset();
+		cachedDeathsOfficeStorageState.reset();
 		cachedPotionStorageState.reset();
 		cachedMotherlodeSackState.reset();
 		cachedLootingBagState.reset();
@@ -1699,6 +1706,14 @@ public class OraclePlugin extends Plugin
                   state = cachedGravestoneStorageState;
                   snapshotReason = "GRAVESTONE_STORAGE";
           }
+          else if (
+                  containerId ==
+                          InventoryID.DEATH_PERMANENT
+          )
+          {
+                  state = cachedDeathsOfficeStorageState;
+                  snapshotReason = "DEATHS_OFFICE_STORAGE";
+          }
 		else if (containerId == InventoryID.LOOTING_BAG)
 		{
 			state = cachedLootingBagState;
@@ -2547,6 +2562,7 @@ public class OraclePlugin extends Plugin
 						cachedCoxPrivateStorageState.getObservedAt(),
 						cachedCoxSharedStorageState.getObservedAt(),
 						cachedGravestoneStorageState.getObservedAt(),
+						cachedDeathsOfficeStorageState.getObservedAt(),
 						cachedPotionStorageState.getObservedAt(),
 						cachedMotherlodeSackState.getObservedAt(),
 						cachedLootingBagState.getObservedAt(),
@@ -2579,6 +2595,8 @@ public class OraclePlugin extends Plugin
 				observedItemContainerPayload(cachedCoxSharedStorageState);
           String gravestoneStorageJson =
                           observedItemContainerPayload(cachedGravestoneStorageState);
+          String deathsOfficeStorageJson =
+                          observedItemContainerPayload(cachedDeathsOfficeStorageState);
           String potionStorageJson =
                           observedPotionStoragePayload(cachedPotionStorageState);
           String motherlodeSackJson =
@@ -3180,6 +3198,7 @@ public class OraclePlugin extends Plugin
 								"\"coxPrivateStorage\":%s," +
 								"\"coxSharedStorage\":%s," +
 								"\"gravestoneStorage\":%s," +
+								"\"deathsOfficeStorage\":%s," +
 								"\"potionStorage\":%s," +
 								"\"motherlodeSack\":%s," +
 								"\"lootingBag\":%s," +
@@ -3226,6 +3245,7 @@ public class OraclePlugin extends Plugin
 						coxPrivateStorageJson,
 						coxSharedStorageJson,
 						gravestoneStorageJson,
+						deathsOfficeStorageJson,
 						potionStorageJson,
 						motherlodeSackJson,
 						lootingBagJson,

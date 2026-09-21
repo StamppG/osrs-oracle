@@ -23,6 +23,7 @@ public class SnapshotEvidenceTest
                         "2026-09-20T19:58:00Z",
                         "2026-09-20T19:59:00Z",
                         "2026-09-20T19:59:50Z",
+                        "2026-09-20T19:59:50.250Z",
                         "2026-09-20T19:59:50.500Z",
                         "2026-09-20T19:59:50.750Z",
                         "2026-09-20T19:59:51Z",
@@ -71,6 +72,10 @@ public class SnapshotEvidenceTest
         assertTrue(json.contains(
                 "\"gravestoneStorage\":{\"status\":\"OBSERVED\"," +
                         "\"observedAt\":\"2026-09-20T19:59:50Z\"}"
+        ));
+        assertTrue(json.contains(
+                "\"deathsOfficeStorage\":{\"status\":\"OBSERVED\"," +
+                        "\"observedAt\":\"2026-09-20T19:59:50.250Z\"}"
         ));
         assertTrue(json.contains(
                 "\"potionStorage\":{\"status\":\"OBSERVED\"," +
@@ -126,6 +131,7 @@ public class SnapshotEvidenceTest
                         1,
                         false,
                         false,
+                        null,
                         null,
                         null,
                         null,

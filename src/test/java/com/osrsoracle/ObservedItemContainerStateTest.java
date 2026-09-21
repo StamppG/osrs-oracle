@@ -239,4 +239,21 @@ public class ObservedItemContainerStateTest
         assertNull(state.getObservedAt());
         assertNull(state.getItems());
     }
+
+    @Test
+    public void deathsOfficeStorageIsPersonalAccountState()
+    {
+        ObservedItemContainerState state =
+                new ObservedItemContainerState(
+                        "deathsOfficeStorage",
+                        ObservedItemContainerState.Scope.ACCOUNT,
+                        false
+                );
+
+        assertEquals(
+                ObservedItemContainerState.Scope.ACCOUNT,
+                state.getScope()
+        );
+        assertFalse(state.isShared());
+    }
 }
