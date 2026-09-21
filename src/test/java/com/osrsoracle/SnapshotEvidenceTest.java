@@ -33,6 +33,7 @@ public class SnapshotEvidenceTest
                         "2026-09-20T19:59:54Z",
                         "2026-09-20T19:59:55Z",
                         "2026-09-20T19:59:56Z",
+                        "2026-09-20T19:59:57Z",
                         "2026-09-20T19:50:00Z",
                         3,
                         null
@@ -114,6 +115,10 @@ public class SnapshotEvidenceTest
                         "\"observedAt\":\"2026-09-20T19:59:56Z\"}"
         ));
         assertTrue(json.contains(
+                "\"dizanasQuiverAmmo\":{\"status\":\"OBSERVED\"," +
+                        "\"observedAt\":\"2026-09-20T19:59:57Z\"}"
+        ));
+        assertTrue(json.contains(
                 "\"collectionLogPages\":{\"status\":\"PARTIAL\"," +
                         "\"observedAt\":\"2026-09-20T19:50:00Z\"," +
                         "\"pagesObserved\":3}"
@@ -131,6 +136,7 @@ public class SnapshotEvidenceTest
                         1,
                         false,
                         false,
+                        null,
                         null,
                         null,
                         null,

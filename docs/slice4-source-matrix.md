@@ -92,7 +92,7 @@ The client MUST NOT:
 | Hallowed Sepulchre storage | HALLOWED_STORAGE_* vars | ACCOUNT_STORAGE | NEEDS_OBSERVATION_PROOF |
 | Clue scroll case | SCROLL_CASE_* vars | ACCOUNT_STORAGE | NEEDS_OBSERVATION_PROOF |
 | TOA stored pickaxe | TOA_PICKAXE_STORAGE | ACCOUNT_STORAGE | NEEDS_OBSERVATION_PROOF |
-| Dizana's quiver state | quiver ammo/charge vars | ITEM_STATE | READY |
+| Dizana's quiver ammo var state | DIZANAS_QUIVER_TEMP_AMMO / DIZANAS_QUIVER_TEMP_AMMO_AMOUNT + quiver-capable item context | ITEM_STATE | IMPLEMENTED_SOURCE_PROVEN |
 | Pre-pot device / chugging loadouts | PREPOT_DEVICE_* vars | ACCOUNT_STORAGE | READY |
 | POH Costume Room | POH costume inventories | OBSERVED_CONTAINER | READY |
 | STASH units | WATSON_STASH_UNIT_CHECK | SPECIAL_SYNC | NEEDS_DESIGN |
@@ -106,7 +106,8 @@ The client MUST NOT:
 | Forestry kit | FORESTRY_KIT | OBSERVED_CONTAINER | NEEDS_PROOF |
 | Huntsman's kit | HUNTSMANS_KIT | OBSERVED_CONTAINER | NEEDS_PROOF |
 | Looting bag | LOOTING_BAG | OBSERVED_CONTAINER | NEEDS_PROOF |
-| Dizana quiver ammo | DIZANAS_QUIVER_AMMO | ITEM_STATE / OBSERVED_CONTAINER | READY |
+| Dizana quiver ammo container | DIZANAS_QUIVER_AMMO | OBSERVED_CONTAINER | NEEDS_PROOF |
+| Dizana quiver charges | no standalone source-proven charge variable identified | ITEM_STATE | NEEDS_PROOF |
 | GIM shared storage | INV_GROUP_TEMP / group storage inventory | GROUP_STORAGE | IMPLEMENTED_SOURCE_PROVEN |
 | GIM storage access level | GIM_STORAGE_ACCESS_LEVEL | GROUP_STORAGE | NEEDS_PROOF |
 | Death storage | death inventory IDs | ACCOUNT_STORAGE / OBSERVED_CONTAINER | READY |

@@ -13,6 +13,7 @@ import net.runelite.api.QuestState;
 import net.runelite.api.EquipmentInventorySlot;
 import net.runelite.api.Item;
 import net.runelite.api.ItemContainer;
+import net.runelite.api.ParamID;
 import net.runelite.api.Varbits;
 import net.runelite.api.VarClientStr;
 import net.runelite.api.MenuAction;
@@ -23,6 +24,7 @@ import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
+import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.events.ScriptPreFired;
@@ -225,6 +227,9 @@ public class OraclePlugin extends Plugin
 	                false
 	        );
 
+	private final ObservedQuiverAmmoState cachedDizanasQuiverAmmoState =
+	        new ObservedQuiverAmmoState();
+
 
 	private String entryIntentReason = null;
 	private String pendingEntrySnapshotReason = null;
@@ -330,6 +335,7 @@ public class OraclePlugin extends Plugin
 		cachedForestryKitState.reset();
 		cachedHuntsmansKitState.reset();
 		cachedBarbarianKnapsackState.reset();
+		cachedDizanasQuiverAmmoState.reset();
 		lastCollectionCaptureTime = 0;
 		cachedCollectionLogCapturedAt = null;
 		cachedCollectionLogPages.clear();
@@ -1487,6 +1493,16 @@ public class OraclePlugin extends Plugin
 		}
 
 		int containerId = event.getContainerId();
+
+		if (containerId == InventoryID.WORN)
+		{
+		        observeDizanasQuiverAmmoIfContext(
+		                "DIZANAS_QUIVER_CONTEXT",
+		                true
+		        );
+		        return;
+		}
+
 		ObservedItemContainerState state;
 		String snapshotReason;
 
@@ -1604,6 +1620,32 @@ public class OraclePlugin extends Plugin
 	}
 
 	@Subscribe
+	public void onVarbitChanged(
+	        VarbitChanged event
+	)
+	{
+	        if (client.getLocalPlayer() == null)
+	        {
+	                return;
+	        }
+
+	        int varpId = event.getVarpId();
+
+	        if (
+	                varpId ==
+	                        VarPlayerID.DIZANAS_QUIVER_TEMP_AMMO ||
+	                varpId ==
+	                        VarPlayerID.DIZANAS_QUIVER_TEMP_AMMO_AMOUNT
+	        )
+	        {
+	                observeDizanasQuiverAmmoIfContext(
+	                        "DIZANAS_QUIVER_AMMO",
+	                        true
+	                );
+	        }
+	}
+
+	@Subscribe
 	public void onWidgetLoaded(
 			WidgetLoaded event
 	)
@@ -1628,6 +1670,96 @@ public class OraclePlugin extends Plugin
 		}
 	}
 
+
+	private void observeDizanasQuiverAmmoIfContext(
+	        String snapshotReason,
+	        boolean requestUpload
+	)
+	{
+	        if (!hasDizanasQuiverContext())
+	        {
+	                return;
+	        }
+
+	        boolean accepted =
+	                cachedDizanasQuiverAmmoState.observe(
+	                        client.getVarpValue(
+	                                VarPlayerID.DIZANAS_QUIVER_TEMP_AMMO
+	                        ),
+	                        client.getVarpValue(
+	                                VarPlayerID.DIZANAS_QUIVER_TEMP_AMMO_AMOUNT
+	                        ),
+	                        Instant.now().toString()
+	                );
+
+	        if (
+	                accepted &&
+	                requestUpload
+	        )
+	        {
+	                requestSnapshot(snapshotReason);
+	        }
+	}
+
+	private boolean hasDizanasQuiverContext()
+	{
+	        return containsQuiverAmmoCapableItem(
+	                client.getItemContainer(InventoryID.INV)
+	        ) ||
+	                containsQuiverAmmoCapableItem(
+	                        client.getItemContainer(InventoryID.WORN)
+	                );
+	}
+
+	private boolean containsQuiverAmmoCapableItem(
+	        ItemContainer container
+	)
+	{
+	        if (container == null)
+	        {
+	                return false;
+	        }
+
+	        for (Item item : container.getItems())
+	        {
+	                if (
+	                        item == null ||
+	                        item.getId() <= 0
+	                )
+	                {
+	                        continue;
+	                }
+
+	                if (
+	                        client
+	                                .getItemDefinition(item.getId())
+	                                .getIntValue(
+	                                        ParamID.QUIVER_AMMO_AVAILABLE
+	                                ) == 1
+	                )
+	                {
+	                        return true;
+	                }
+	        }
+
+	        return false;
+	}
+
+	private String observedQuiverAmmoPayload(
+	        ObservedQuiverAmmoState state
+	)
+	{
+	        if (!state.hasObservation())
+	        {
+	                return "{\"scope\":\"ACCOUNT\",\"ownership\":\"PERSONAL\",\"ammoItemIdRaw\":null,\"ammoQuantity\":null}";
+	        }
+
+	        return String.format(
+	                "{\"scope\":\"ACCOUNT\",\"ownership\":\"PERSONAL\",\"ammoItemIdRaw\":%d,\"ammoQuantity\":%d}",
+	                state.getAmmoItemIdRaw(),
+	                state.getAmmoQuantity()
+	        );
+	}
 
 	/*
 	 * Serialize a retained observed container without changing ownership
@@ -1829,6 +1961,11 @@ public class OraclePlugin extends Plugin
 				client.getItemContainer(
 						InventoryID.WORN
 				);
+
+		observeDizanasQuiverAmmoIfContext(
+		        null,
+		        false
+		);
 
 
 		ItemContainer seedVault =
@@ -2143,6 +2280,7 @@ public class OraclePlugin extends Plugin
 						cachedForestryKitState.getObservedAt(),
 						cachedHuntsmansKitState.getObservedAt(),
 						cachedBarbarianKnapsackState.getObservedAt(),
+						cachedDizanasQuiverAmmoState.getObservedAt(),
 						cachedCollectionLogCapturedAt,
 						cachedCollectionLogPages.size(),
 						collectionInstantCapturedAt
@@ -2197,6 +2335,11 @@ public class OraclePlugin extends Plugin
 
 		String barbarianKnapsackJson =
 				observedItemContainerPayload(cachedBarbarianKnapsackState);
+
+		String dizanasQuiverAmmoJson =
+				observedQuiverAmmoPayload(
+				        cachedDizanasQuiverAmmoState
+				);
 
 		int accountTypeCode =
 				client.getVarbitValue(
@@ -2778,6 +2921,7 @@ public class OraclePlugin extends Plugin
 								"\"forestryKit\":%s," +
 								"\"huntsmansKit\":%s," +
 								"\"barbarianKnapsack\":%s," +
+								"\"dizanasQuiverAmmo\":%s," +
 								"\"equipment\":%s}",
 
 						escapeJson(account),
@@ -2825,6 +2969,7 @@ public class OraclePlugin extends Plugin
 						forestryKitJson,
 						huntsmansKitJson,
 						barbarianKnapsackJson,
+						dizanasQuiverAmmoJson,
 						equipmentJson
 				);
 

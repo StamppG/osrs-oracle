@@ -40,6 +40,7 @@ final class SnapshotEvidence
             String forestryKitObservedAt,
             String huntsmansKitObservedAt,
             String barbarianKnapsackObservedAt,
+            String dizanasQuiverAmmoObservedAt,
             String collectionLogObservedAt,
             int collectionLogPages,
             String collectionLogInstantObservedAt
@@ -154,6 +155,11 @@ final class SnapshotEvidence
                 observation(
                         barbarianKnapsackObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
                         barbarianKnapsackObservedAt
+                ) +
+                ",\"dizanasQuiverAmmo\":" +
+                observation(
+                        dizanasQuiverAmmoObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
+                        dizanasQuiverAmmoObservedAt
                 ) +
                 ",\"collectionLogPages\":{\"status\":" +
                 jsonString(
