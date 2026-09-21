@@ -82,7 +82,7 @@ The client MUST NOT:
 | Bank | InventoryID.BANK | OBSERVED_CONTAINER | IMPLEMENTED |
 | Seed Vault | InventoryID.SEED_VAULT | OBSERVED_CONTAINER | IMPLEMENTED |
 | Tool Leprechaun | FARMING_TOOLS_* varbits | ACCOUNT_STORAGE | NEEDS_OBSERVATION_PROOF |
-| Potion storage | POTIONSTORE_* varps + RuneLite PotionStorage model | ACCOUNT_STORAGE | NEEDS_DECODER |
+| Potion storage | POTIONSTORE_BUILD / POTIONSTORE_DOSE_CHANGE + Bankmain.POTIONSTORE_ITEMS + POTIONSTORE_VIALS | ACCOUNT_STORAGE / OBSERVED_UI | IMPLEMENTED_SOURCE_PROVEN |
 | Rune pouch | RUNE_POUCH_TYPE_1..6 + QUANTITY_1..6 | ITEM_STATE | READY_LIVE |
 | Essence pouches | essence pouch amount/type/degradation vars | ITEM_STATE | READY_LIVE |
 | Bolt pouch | XBOWS_POUCH slot/quantity vars | ITEM_STATE | NEEDS_OBSERVATION_PROOF |

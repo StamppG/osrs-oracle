@@ -30,6 +30,7 @@ final class SnapshotEvidence
             String coxPrivateStorageObservedAt,
             String coxSharedStorageObservedAt,
             String gravestoneStorageObservedAt,
+            String potionStorageObservedAt,
             String lootingBagObservedAt,
             String seedBoxObservedAt,
             String tackleBoxObservedAt,
@@ -101,6 +102,11 @@ final class SnapshotEvidence
                 observation(
                         gravestoneStorageObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
                         gravestoneStorageObservedAt
+                ) +
+                ",\"potionStorage\":" +
+                observation(
+                        potionStorageObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
+                        potionStorageObservedAt
                 ) +
                 ",\"lootingBag\":" +
                 observation(

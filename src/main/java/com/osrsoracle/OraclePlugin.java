@@ -31,6 +31,7 @@ import net.runelite.api.events.ScriptPreFired;
 
 import net.runelite.api.gameval.DBTableID;
 import net.runelite.api.gameval.VarPlayerID;
+import net.runelite.api.gameval.ItemID;
 import net.runelite.api.gameval.InventoryID;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.ScriptID;
@@ -155,6 +156,9 @@ public class OraclePlugin extends Plugin
                   ObservedItemContainerState.Scope.ACCOUNT,
                   false
           );
+  private final ObservedPotionStorageState cachedPotionStorageState =
+          new ObservedPotionStorageState();
+
 
 
 	private final ObservedItemContainerState cachedLootingBagState =
@@ -297,6 +301,7 @@ public class OraclePlugin extends Plugin
 		cachedCoxPrivateStorageState.reset();
 		cachedCoxSharedStorageState.reset();
 		cachedGravestoneStorageState.reset();
+		cachedPotionStorageState.reset();
 		cachedLootingBagState.reset();
 		cachedSeedBoxState.reset();
 		cachedTackleBoxState.reset();
@@ -874,6 +879,17 @@ public class OraclePlugin extends Plugin
 			ScriptPostFired event
 	)
 	{
+          int scriptId =
+                          event.getScriptId();
+
+          if (
+                          scriptId == ScriptID.POTIONSTORE_BUILD ||
+                                          scriptId == ScriptID.POTIONSTORE_DOSE_CHANGE
+          )
+          {
+                  observePotionStorage();
+          }
+
 		/*
 		 * INSTANT COLLECTION LOG START
 		 *
@@ -1045,6 +1061,163 @@ public class OraclePlugin extends Plugin
 
 	}
 
+
+
+  private void observePotionStorage()
+  {
+          Widget content =
+                          client.getWidget(
+                                          InterfaceID.Bankmain.POTIONSTORE_ITEMS
+                          );
+
+          if (content == null)
+          {
+                  return;
+          }
+
+          Widget[] children =
+                          content.getDynamicChildren();
+
+          if (children == null)
+          {
+                  return;
+          }
+
+          List<ObservedPotionStorageState.Entry> entries =
+                          new ArrayList<>();
+
+          for (
+                          int i = 0;
+                          i + 4 < children.length;
+                          i += 5
+          )
+          {
+                  Widget itemWidget =
+                                  children[i + 1];
+
+                  Widget amountWidget =
+                                  children[i + 3];
+
+                  if (
+                                  itemWidget == null ||
+                                                  amountWidget == null ||
+                                                  itemWidget.getItemId() <= 0
+                  )
+                  {
+                          continue;
+                  }
+
+                  String amountText =
+                                  amountWidget.getText();
+
+                  if (amountText == null)
+                  {
+                          return;
+                  }
+
+                  amountText =
+                                  stripTags(amountText).trim();
+
+                  String amountType;
+                  String numericText;
+
+                  if (amountText.startsWith("Doses: "))
+                  {
+                          amountType =
+                                          ObservedPotionStorageState.AMOUNT_DOSES;
+
+                          numericText =
+                                          amountText.substring("Doses: ".length());
+                  }
+                  else if (amountText.startsWith("Quantity: "))
+                  {
+                          amountType =
+                                          ObservedPotionStorageState.AMOUNT_QUANTITY;
+
+                          numericText =
+                                          amountText.substring("Quantity: ".length());
+                  }
+                  else
+                  {
+                          return;
+                  }
+
+                  int amount;
+
+                  try
+                  {
+                          amount =
+                                          Integer.parseInt(
+                                                          numericText.replace(",", "").trim()
+                                          );
+                  }
+                  catch (NumberFormatException ex)
+                  {
+                          return;
+                  }
+
+                  if (amount < 0)
+                  {
+                          return;
+                  }
+
+                  entries.add(
+                                  new ObservedPotionStorageState.Entry(
+                                                  itemWidget.getItemId(),
+                                                  amount,
+                                                  amountType
+                                  )
+                  );
+          }
+
+          boolean vialsAlreadyObserved =
+                          false;
+
+          for (ObservedPotionStorageState.Entry entry : entries)
+          {
+                  if (entry.getItemId() == ItemID.VIAL_EMPTY)
+                  {
+                          vialsAlreadyObserved = true;
+                          break;
+                  }
+          }
+
+          if (!vialsAlreadyObserved)
+          {
+                  int vialQuantity =
+                                  client.getVarpValue(
+                                                  VarPlayerID.POTIONSTORE_VIALS
+                                  );
+
+                  if (vialQuantity < 0)
+                  {
+                          return;
+                  }
+
+                  if (vialQuantity > 0)
+                  {
+                          entries.add(
+                                          new ObservedPotionStorageState.Entry(
+                                                          ItemID.VIAL_EMPTY,
+                                                          vialQuantity,
+                                                          ObservedPotionStorageState.AMOUNT_QUANTITY
+                                          )
+                          );
+                  }
+          }
+          boolean accepted =
+                          cachedPotionStorageState.observe(
+                                          entries.toArray(
+                                                          new ObservedPotionStorageState.Entry[0]
+                                          ),
+                                          Instant.now().toString()
+                          );
+
+          if (accepted)
+          {
+                  requestSnapshot("POTION_STORAGE");
+          }
+  }
 
 	private void startInstantCollectionLogSync()
 	{
@@ -1681,6 +1854,51 @@ public class OraclePlugin extends Plugin
 	        return false;
 	}
 
+  private String observedPotionStoragePayload(
+          ObservedPotionStorageState state
+  )
+  {
+          ObservedPotionStorageState.Entry[] entries =
+                          state.getEntries();
+
+          if (entries == null)
+          {
+                  return "{\"scope\":\"ACCOUNT\",\"ownership\":\"PERSONAL\",\"entries\":null}";
+          }
+
+          StringJoiner entryJson =
+                          new StringJoiner(
+                                          ",",
+                                          "[",
+                                          "]"
+                          );
+
+          for (ObservedPotionStorageState.Entry entry : entries)
+          {
+                  String itemName =
+                                  client
+                                                  .getItemDefinition(
+                                                                  entry.getItemId()
+                                                  )
+                                                  .getName();
+
+                  entryJson.add(
+                                  String.format(
+                                                  "{\"name\":\"%s\",\"id\":%d,\"amount\":%d,\"amountType\":\"%s\"}",
+                                                  escapeJson(itemName),
+                                                  entry.getItemId(),
+                                                  entry.getAmount(),
+                                                  entry.getAmountType()
+                                  )
+                  );
+          }
+
+          return String.format(
+                          "{\"scope\":\"ACCOUNT\",\"ownership\":\"PERSONAL\",\"entries\":%s}",
+                          entryJson
+          );
+  }
+
 	private String observedQuiverAmmoPayload(
 	        ObservedQuiverAmmoState state
 	)
@@ -2206,6 +2424,7 @@ public class OraclePlugin extends Plugin
 						cachedCoxPrivateStorageState.getObservedAt(),
 						cachedCoxSharedStorageState.getObservedAt(),
 						cachedGravestoneStorageState.getObservedAt(),
+						cachedPotionStorageState.getObservedAt(),
 						cachedLootingBagState.getObservedAt(),
 						cachedSeedBoxState.getObservedAt(),
 						cachedTackleBoxState.getObservedAt(),
@@ -2236,6 +2455,9 @@ public class OraclePlugin extends Plugin
 				observedItemContainerPayload(cachedCoxSharedStorageState);
           String gravestoneStorageJson =
                           observedItemContainerPayload(cachedGravestoneStorageState);
+          String potionStorageJson =
+                          observedPotionStoragePayload(cachedPotionStorageState);
+
 
 
 		String lootingBagJson =
@@ -2831,6 +3053,7 @@ public class OraclePlugin extends Plugin
 								"\"coxPrivateStorage\":%s," +
 								"\"coxSharedStorage\":%s," +
 								"\"gravestoneStorage\":%s," +
+								"\"potionStorage\":%s," +
 								"\"lootingBag\":%s," +
 								"\"seedBox\":%s," +
 								"\"tackleBox\":%s," +
@@ -2875,6 +3098,7 @@ public class OraclePlugin extends Plugin
 						coxPrivateStorageJson,
 						coxSharedStorageJson,
 						gravestoneStorageJson,
+						potionStorageJson,
 						lootingBagJson,
 						seedBoxJson,
 						tackleBoxJson,
