@@ -148,6 +148,41 @@ public class OraclePlugin extends Plugin
 	                true
 	        );
 
+	private final ObservedItemContainerState cachedToaMidraidBundle1State =
+	        new ObservedItemContainerState(
+	                "toaMidraidBundle1",
+	                ObservedItemContainerState.Scope.ACTIVITY,
+	                false
+	        );
+
+	private final ObservedItemContainerState cachedToaMidraidBundle2State =
+	        new ObservedItemContainerState(
+	                "toaMidraidBundle2",
+	                ObservedItemContainerState.Scope.ACTIVITY,
+	                false
+	        );
+
+	private final ObservedItemContainerState cachedToaMidraidBundle3State =
+	        new ObservedItemContainerState(
+	                "toaMidraidBundle3",
+	                ObservedItemContainerState.Scope.ACTIVITY,
+	                false
+	        );
+
+	private final ObservedItemContainerState cachedToaMidraidBagState =
+	        new ObservedItemContainerState(
+	                "toaMidraidBag",
+	                ObservedItemContainerState.Scope.ACTIVITY,
+	                false
+	        );
+
+	private final ObservedItemContainerState cachedToaRewardChestState =
+	        new ObservedItemContainerState(
+	                "toaRewardChest",
+	                ObservedItemContainerState.Scope.ACTIVITY,
+	                false
+	        );
+
 
 	private String entryIntentReason = null;
 	private String pendingEntrySnapshotReason = null;
@@ -242,6 +277,11 @@ public class OraclePlugin extends Plugin
 		cachedGimStorageState.reset();
 		cachedCoxPrivateStorageState.reset();
 		cachedCoxSharedStorageState.reset();
+		cachedToaMidraidBundle1State.reset();
+		cachedToaMidraidBundle2State.reset();
+		cachedToaMidraidBundle3State.reset();
+		cachedToaMidraidBagState.reset();
+		cachedToaRewardChestState.reset();
 		lastCollectionCaptureTime = 0;
 		cachedCollectionLogCapturedAt = null;
 		cachedCollectionLogPages.clear();
@@ -1423,6 +1463,43 @@ public class OraclePlugin extends Plugin
 			state = cachedCoxSharedStorageState;
 			snapshotReason = "COX_SHARED_STORAGE";
 		}
+		else if (
+			containerId ==
+				InventoryID.TOA_MIDRAIDLOOT_BUNDLE1
+		)
+		{
+			state = cachedToaMidraidBundle1State;
+			snapshotReason = "TOA_MIDRAID_BUNDLE_1";
+		}
+		else if (
+			containerId ==
+				InventoryID.TOA_MIDRAIDLOOT_BUNDLE2
+		)
+		{
+			state = cachedToaMidraidBundle2State;
+			snapshotReason = "TOA_MIDRAID_BUNDLE_2";
+		}
+		else if (
+			containerId ==
+				InventoryID.TOA_MIDRAIDLOOT_BUNDLE3
+		)
+		{
+			state = cachedToaMidraidBundle3State;
+			snapshotReason = "TOA_MIDRAID_BUNDLE_3";
+		}
+		else if (
+			containerId ==
+				InventoryID.TOA_MIDRAIDLOOT_BAG
+		)
+		{
+			state = cachedToaMidraidBagState;
+			snapshotReason = "TOA_MIDRAID_BAG";
+		}
+		else if (containerId == InventoryID.TOA_CHESTS)
+		{
+			state = cachedToaRewardChestState;
+			snapshotReason = "TOA_REWARD_CHEST";
+		}
 		else
 		{
 			return;
@@ -1430,7 +1507,7 @@ public class OraclePlugin extends Plugin
 
 		/*
 		 * An actual container event is authoritative. Later absence is not
-		 * evidence of empty. CoX storage remains ACTIVITY scoped and must
+		 * evidence of empty. Raid storage remains ACTIVITY scoped and must
 		 * never be promoted to durable account ownership.
 		 */
 		boolean accepted =
@@ -1974,6 +2051,11 @@ public class OraclePlugin extends Plugin
 						cachedGimStorageState.getObservedAt(),
 						cachedCoxPrivateStorageState.getObservedAt(),
 						cachedCoxSharedStorageState.getObservedAt(),
+						cachedToaMidraidBundle1State.getObservedAt(),
+						cachedToaMidraidBundle2State.getObservedAt(),
+						cachedToaMidraidBundle3State.getObservedAt(),
+						cachedToaMidraidBagState.getObservedAt(),
+						cachedToaRewardChestState.getObservedAt(),
 						cachedCollectionLogCapturedAt,
 						cachedCollectionLogPages.size(),
 						collectionInstantCapturedAt
@@ -1995,6 +2077,21 @@ public class OraclePlugin extends Plugin
 
 		String coxSharedStorageJson =
 				observedItemContainerPayload(cachedCoxSharedStorageState);
+
+		String toaMidraidBundle1Json =
+				observedItemContainerPayload(cachedToaMidraidBundle1State);
+
+		String toaMidraidBundle2Json =
+				observedItemContainerPayload(cachedToaMidraidBundle2State);
+
+		String toaMidraidBundle3Json =
+				observedItemContainerPayload(cachedToaMidraidBundle3State);
+
+		String toaMidraidBagJson =
+				observedItemContainerPayload(cachedToaMidraidBagState);
+
+		String toaRewardChestJson =
+				observedItemContainerPayload(cachedToaRewardChestState);
 
 		int accountTypeCode =
 				client.getVarbitValue(
@@ -2565,6 +2662,11 @@ public class OraclePlugin extends Plugin
 								"\"gimStorage\":%s," +
 								"\"coxPrivateStorage\":%s," +
 								"\"coxSharedStorage\":%s," +
+								"\"toaMidraidBundle1\":%s," +
+								"\"toaMidraidBundle2\":%s," +
+								"\"toaMidraidBundle3\":%s," +
+								"\"toaMidraidBag\":%s," +
+								"\"toaRewardChest\":%s," +
 								"\"equipment\":%s}",
 
 						escapeJson(account),
@@ -2601,6 +2703,11 @@ public class OraclePlugin extends Plugin
 						gimStorageJson,
 						coxPrivateStorageJson,
 						coxSharedStorageJson,
+						toaMidraidBundle1Json,
+						toaMidraidBundle2Json,
+						toaMidraidBundle3Json,
+						toaMidraidBagJson,
+						toaRewardChestJson,
 						equipmentJson
 				);
 
