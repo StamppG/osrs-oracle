@@ -27,6 +27,12 @@ public class SnapshotEvidenceTest
                         "2026-09-20T19:59:30Z",
                         "2026-09-20T19:59:40Z",
                         "2026-09-20T19:59:50Z",
+                        "2026-09-20T19:59:51Z",
+                        "2026-09-20T19:59:52Z",
+                        "2026-09-20T19:59:53Z",
+                        "2026-09-20T19:59:54Z",
+                        "2026-09-20T19:59:55Z",
+                        "2026-09-20T19:59:56Z",
                         "2026-09-20T19:50:00Z",
                         3,
                         null
@@ -84,6 +90,30 @@ public class SnapshotEvidenceTest
                         "\"observedAt\":\"2026-09-20T19:59:50Z\"}"
         ));
         assertTrue(json.contains(
+                "\"lootingBag\":{\"status\":\"OBSERVED\"," +
+                        "\"observedAt\":\"2026-09-20T19:59:51Z\"}"
+        ));
+        assertTrue(json.contains(
+                "\"seedBox\":{\"status\":\"OBSERVED\"," +
+                        "\"observedAt\":\"2026-09-20T19:59:52Z\"}"
+        ));
+        assertTrue(json.contains(
+                "\"tackleBox\":{\"status\":\"OBSERVED\"," +
+                        "\"observedAt\":\"2026-09-20T19:59:53Z\"}"
+        ));
+        assertTrue(json.contains(
+                "\"forestryKit\":{\"status\":\"OBSERVED\"," +
+                        "\"observedAt\":\"2026-09-20T19:59:54Z\"}"
+        ));
+        assertTrue(json.contains(
+                "\"huntsmansKit\":{\"status\":\"OBSERVED\"," +
+                        "\"observedAt\":\"2026-09-20T19:59:55Z\"}"
+        ));
+        assertTrue(json.contains(
+                "\"barbarianKnapsack\":{\"status\":\"OBSERVED\"," +
+                        "\"observedAt\":\"2026-09-20T19:59:56Z\"}"
+        ));
+        assertTrue(json.contains(
                 "\"collectionLogPages\":{\"status\":\"PARTIAL\"," +
                         "\"observedAt\":\"2026-09-20T19:50:00Z\"," +
                         "\"pagesObserved\":3}"
@@ -101,6 +131,12 @@ public class SnapshotEvidenceTest
                         1,
                         false,
                         false,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
                         null,
                         null,
                         null,

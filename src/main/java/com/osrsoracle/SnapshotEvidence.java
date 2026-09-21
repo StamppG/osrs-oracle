@@ -34,6 +34,12 @@ final class SnapshotEvidence
             String toaMidraidBundle3ObservedAt,
             String toaMidraidBagObservedAt,
             String toaRewardChestObservedAt,
+            String lootingBagObservedAt,
+            String seedBoxObservedAt,
+            String tackleBoxObservedAt,
+            String forestryKitObservedAt,
+            String huntsmansKitObservedAt,
+            String barbarianKnapsackObservedAt,
             String collectionLogObservedAt,
             int collectionLogPages,
             String collectionLogInstantObservedAt
@@ -118,6 +124,36 @@ final class SnapshotEvidence
                 observation(
                         toaRewardChestObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
                         toaRewardChestObservedAt
+                ) +
+                ",\"lootingBag\":" +
+                observation(
+                        lootingBagObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
+                        lootingBagObservedAt
+                ) +
+                ",\"seedBox\":" +
+                observation(
+                        seedBoxObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
+                        seedBoxObservedAt
+                ) +
+                ",\"tackleBox\":" +
+                observation(
+                        tackleBoxObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
+                        tackleBoxObservedAt
+                ) +
+                ",\"forestryKit\":" +
+                observation(
+                        forestryKitObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
+                        forestryKitObservedAt
+                ) +
+                ",\"huntsmansKit\":" +
+                observation(
+                        huntsmansKitObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
+                        huntsmansKitObservedAt
+                ) +
+                ",\"barbarianKnapsack\":" +
+                observation(
+                        barbarianKnapsackObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
+                        barbarianKnapsackObservedAt
                 ) +
                 ",\"collectionLogPages\":{\"status\":" +
                 jsonString(

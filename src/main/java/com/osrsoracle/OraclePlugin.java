@@ -183,6 +183,48 @@ public class OraclePlugin extends Plugin
 	                false
 	        );
 
+	private final ObservedItemContainerState cachedLootingBagState =
+	        new ObservedItemContainerState(
+	                "lootingBag",
+	                ObservedItemContainerState.Scope.ACCOUNT,
+	                false
+	        );
+
+	private final ObservedItemContainerState cachedSeedBoxState =
+	        new ObservedItemContainerState(
+	                "seedBox",
+	                ObservedItemContainerState.Scope.ACCOUNT,
+	                false
+	        );
+
+	private final ObservedItemContainerState cachedTackleBoxState =
+	        new ObservedItemContainerState(
+	                "tackleBox",
+	                ObservedItemContainerState.Scope.ACCOUNT,
+	                false
+	        );
+
+	private final ObservedItemContainerState cachedForestryKitState =
+	        new ObservedItemContainerState(
+	                "forestryKit",
+	                ObservedItemContainerState.Scope.ACCOUNT,
+	                false
+	        );
+
+	private final ObservedItemContainerState cachedHuntsmansKitState =
+	        new ObservedItemContainerState(
+	                "huntsmansKit",
+	                ObservedItemContainerState.Scope.ACCOUNT,
+	                false
+	        );
+
+	private final ObservedItemContainerState cachedBarbarianKnapsackState =
+	        new ObservedItemContainerState(
+	                "barbarianKnapsack",
+	                ObservedItemContainerState.Scope.ACCOUNT,
+	                false
+	        );
+
 
 	private String entryIntentReason = null;
 	private String pendingEntrySnapshotReason = null;
@@ -282,6 +324,12 @@ public class OraclePlugin extends Plugin
 		cachedToaMidraidBundle3State.reset();
 		cachedToaMidraidBagState.reset();
 		cachedToaRewardChestState.reset();
+		cachedLootingBagState.reset();
+		cachedSeedBoxState.reset();
+		cachedTackleBoxState.reset();
+		cachedForestryKitState.reset();
+		cachedHuntsmansKitState.reset();
+		cachedBarbarianKnapsackState.reset();
 		lastCollectionCaptureTime = 0;
 		cachedCollectionLogCapturedAt = null;
 		cachedCollectionLogPages.clear();
@@ -1500,6 +1548,39 @@ public class OraclePlugin extends Plugin
 			state = cachedToaRewardChestState;
 			snapshotReason = "TOA_REWARD_CHEST";
 		}
+		else if (containerId == InventoryID.LOOTING_BAG)
+		{
+			state = cachedLootingBagState;
+			snapshotReason = "PORTABLE_LOOTING_BAG";
+		}
+		else if (containerId == InventoryID.SEED_BOX)
+		{
+			state = cachedSeedBoxState;
+			snapshotReason = "PORTABLE_SEED_BOX";
+		}
+		else if (containerId == InventoryID.TACKLE_BOX)
+		{
+			state = cachedTackleBoxState;
+			snapshotReason = "PORTABLE_TACKLE_BOX";
+		}
+		else if (containerId == InventoryID.FORESTRY_KIT)
+		{
+			state = cachedForestryKitState;
+			snapshotReason = "PORTABLE_FORESTRY_KIT";
+		}
+		else if (containerId == InventoryID.HUNTSMANS_KIT)
+		{
+			state = cachedHuntsmansKitState;
+			snapshotReason = "PORTABLE_HUNTSMANS_KIT";
+		}
+		else if (
+			containerId ==
+				InventoryID.BARBARIAN_KNAPSACK
+		)
+		{
+			state = cachedBarbarianKnapsackState;
+			snapshotReason = "PORTABLE_BARBARIAN_KNAPSACK";
+		}
 		else
 		{
 			return;
@@ -1507,8 +1588,8 @@ public class OraclePlugin extends Plugin
 
 		/*
 		 * An actual container event is authoritative. Later absence is not
-		 * evidence of empty. Raid storage remains ACTIVITY scoped and must
-		 * never be promoted to durable account ownership.
+		 * evidence of empty. Each retained state carries its own scope and
+		 * ownership semantics.
 		 */
 		boolean accepted =
 				state.observeIfPresent(
@@ -2056,6 +2137,12 @@ public class OraclePlugin extends Plugin
 						cachedToaMidraidBundle3State.getObservedAt(),
 						cachedToaMidraidBagState.getObservedAt(),
 						cachedToaRewardChestState.getObservedAt(),
+						cachedLootingBagState.getObservedAt(),
+						cachedSeedBoxState.getObservedAt(),
+						cachedTackleBoxState.getObservedAt(),
+						cachedForestryKitState.getObservedAt(),
+						cachedHuntsmansKitState.getObservedAt(),
+						cachedBarbarianKnapsackState.getObservedAt(),
 						cachedCollectionLogCapturedAt,
 						cachedCollectionLogPages.size(),
 						collectionInstantCapturedAt
@@ -2092,6 +2179,24 @@ public class OraclePlugin extends Plugin
 
 		String toaRewardChestJson =
 				observedItemContainerPayload(cachedToaRewardChestState);
+
+		String lootingBagJson =
+				observedItemContainerPayload(cachedLootingBagState);
+
+		String seedBoxJson =
+				observedItemContainerPayload(cachedSeedBoxState);
+
+		String tackleBoxJson =
+				observedItemContainerPayload(cachedTackleBoxState);
+
+		String forestryKitJson =
+				observedItemContainerPayload(cachedForestryKitState);
+
+		String huntsmansKitJson =
+				observedItemContainerPayload(cachedHuntsmansKitState);
+
+		String barbarianKnapsackJson =
+				observedItemContainerPayload(cachedBarbarianKnapsackState);
 
 		int accountTypeCode =
 				client.getVarbitValue(
@@ -2667,6 +2772,12 @@ public class OraclePlugin extends Plugin
 								"\"toaMidraidBundle3\":%s," +
 								"\"toaMidraidBag\":%s," +
 								"\"toaRewardChest\":%s," +
+								"\"lootingBag\":%s," +
+								"\"seedBox\":%s," +
+								"\"tackleBox\":%s," +
+								"\"forestryKit\":%s," +
+								"\"huntsmansKit\":%s," +
+								"\"barbarianKnapsack\":%s," +
 								"\"equipment\":%s}",
 
 						escapeJson(account),
@@ -2708,6 +2819,12 @@ public class OraclePlugin extends Plugin
 						toaMidraidBundle3Json,
 						toaMidraidBagJson,
 						toaRewardChestJson,
+						lootingBagJson,
+						seedBoxJson,
+						tackleBoxJson,
+						forestryKitJson,
+						huntsmansKitJson,
+						barbarianKnapsackJson,
 						equipmentJson
 				);
 
