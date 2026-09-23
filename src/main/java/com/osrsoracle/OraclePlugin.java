@@ -80,6 +80,8 @@ public class OraclePlugin extends Plugin
 	private final HttpClient httpClient = HttpClient.newHttpClient();
 
     private static final long MIN_UPLOAD_INTERVAL_MS = 1000L;
+    private static final int ENTRY_SNAPSHOT_SETTLE_TICKS = 3;
+    private static final int UI_SNAPSHOT_SETTLE_TICKS = 1;
     private static final int STASH_SYNC_BATCH_SIZE = 8;
 
     private static final Set<Integer> MOTHERLODE_MAP_REGIONS = Set.of(
@@ -129,7 +131,8 @@ public class OraclePlugin extends Plugin
     };
 
 	private long lastUploadTime = 0;
-	private String pendingSnapshotReason = null;
+	private final DeferredSnapshotScheduler snapshotScheduler = new DeferredSnapshotScheduler();
+	private final EntryObservationSettleGuard entryObservationSettleGuard = new EntryObservationSettleGuard();
 	private String clientSessionId = null;
 	private long snapshotSequence = 0;
 	private final ObservedItemContainerState cachedBankState =
@@ -332,6 +335,8 @@ public class OraclePlugin extends Plugin
 	{
 		clientSessionId = SnapshotEvidence.newSessionId();
 		snapshotSequence = 0;
+		snapshotScheduler.clear();
+		entryObservationSettleGuard.reset();
 		cachedBankState.reset();
 		cachedSeedVaultState.reset();
 		cachedGimStorageState.reset();
@@ -416,16 +421,13 @@ public class OraclePlugin extends Plugin
 		)
 		{
 			pendingEntrySnapshotReason = entryIntentReason;
+			entryObservationSettleGuard.begin(
+			        client.getTickCount(),
+			        ENTRY_SNAPSHOT_SETTLE_TICKS
+			);
 			entryIntentReason = null;
 		}
 
-          if (newState == GameState.LOGGED_IN)
-          {
-                  observeMotherlodeSack(
-                                  "MOTHERLODE_SACK_ENTRY",
-                                  false
-                  );
-          }
 	}
 
 
@@ -467,33 +469,23 @@ public class OraclePlugin extends Plugin
 		);
 
 		/*
-		 * RATE-LIMITED PENDING PUSH
+		 * DEFERRED / RATE-LIMITED PENDING PUSH
 		 *
-		 * Only the newest reason is retained while the one-second window is
-		 * active. The payload itself is built here at send time so state is
-		 * always fresh rather than serialized when the event first occurred.
+		 * Events coalesce into one pending snapshot. Its settle deadline and
+		 * the one-second upload interval must both be satisfied before sending.
+		 * The payload is built at send time so state is fresh.
 		 */
+		schedulePendingEntrySnapshot();
+		entryObservationSettleGuard.clearIfSettled(client.getTickCount());
 		flushPendingSnapshotIfReady();
 
 		/*
 		 * LOGIN / WORLD-HOP PUSH
 		 *
-		 * The state-change handler records the entry reason and waits until
-		 * RuneLite reaches LOGGED_IN. The first game tick with a valid local
-		 * player then sends the snapshot from the newly entered session/world.
+		 * The state-change handler records the entry reason at LOGGED_IN and
+		 * arms the settle guard. The first valid game tick schedules that
+		 * reason; sending waits until the entry settle deadline has passed.
 		 */
-		if (pendingEntrySnapshotReason != null)
-		{
-			String snapshotReason = pendingEntrySnapshotReason;
-			pendingEntrySnapshotReason = null;
-
-			log.info(
-					"PUSH TRIGGER: {}",
-					snapshotReason
-			);
-
-			requestSnapshot(snapshotReason);
-		}
 		/*
 		 * INSTANT COLLECTION LOG COMPLETION
 		 *
@@ -549,8 +541,11 @@ public class OraclePlugin extends Plugin
 		long now =
 				System.currentTimeMillis();
 
-		if (now - lastUploadTime >=
-				15 * 60 * 1000)
+		if (
+		        !snapshotScheduler.hasPending() &&
+		                now - lastUploadTime >=
+		                        15 * 60 * 1000
+		)
 		{
 			requestSnapshot("HEARTBEAT");
 		}
@@ -1270,7 +1265,10 @@ public class OraclePlugin extends Plugin
 
           if (accepted)
           {
-                  requestSnapshot("POTION_STORAGE");
+                  requestSnapshot(
+                          "POTION_STORAGE",
+                          UI_SNAPSHOT_SETTLE_TICKS
+                  );
           }
   }
 
@@ -2092,19 +2090,25 @@ public class OraclePlugin extends Plugin
 				InterfaceID.BANKMAIN)
 		{
 			log.info(
-					"Bank opened - sending immediate snapshot"
+					"Bank opened - scheduling snapshot after UI settle"
 			);
 
-			requestSnapshot("BANK_OPEN");
+			requestSnapshot(
+			        "BANK_OPEN",
+			        UI_SNAPSHOT_SETTLE_TICKS
+			);
 		}
 
 		if (event.getGroupId() == 631)
 		{
 			log.info(
-					"Seed Vault opened - sending immediate snapshot"
+					"Seed Vault opened - scheduling snapshot after UI settle"
 			);
 
-			requestSnapshot("SEED_VAULT_OPEN");
+			requestSnapshot(
+			        "SEED_VAULT_OPEN",
+			        UI_SNAPSHOT_SETTLE_TICKS
+			);
 		}
 	}
 
@@ -2151,6 +2155,15 @@ public class OraclePlugin extends Plugin
   )
   {
           if (!isInMotherlodeMine())
+          {
+                  return;
+          }
+
+          if (
+                  entryObservationSettleGuard.isSettling(
+                          client.getTickCount()
+                  )
+          )
           {
                   return;
           }
@@ -2480,90 +2493,123 @@ public class OraclePlugin extends Plugin
 	 * the previous pending reason. When the window expires, onGameTick builds
 	 * and sends one fresh snapshot for that newest reason.
 	 */
+	private void schedulePendingEntrySnapshot()
+	{
+	        if (pendingEntrySnapshotReason == null)
+	        {
+	                return;
+	        }
+
+	        String snapshotReason =
+	                pendingEntrySnapshotReason;
+
+	        pendingEntrySnapshotReason = null;
+
+	        log.info(
+	                "PUSH TRIGGER: {}",
+	                snapshotReason
+	        );
+
+	        requestSnapshot(
+	                snapshotReason,
+	                entryObservationSettleGuard.remainingTicks(
+	                        client.getTickCount()
+	                )
+	        );
+	}
+
+
 	private void requestSnapshot(
-			String snapshotReason
+	        String snapshotReason
 	)
 	{
-		if (
-				snapshotReason == null ||
-						snapshotReason.isBlank() ||
-						client.getLocalPlayer() == null
-		)
-		{
-			return;
-		}
+	        requestSnapshot(snapshotReason, 0);
+	}
 
-		long now =
-				System.currentTimeMillis();
 
-		if (
-				lastUploadTime == 0L ||
-						now - lastUploadTime >=
-								MIN_UPLOAD_INTERVAL_MS
-		)
-		{
-			/*
-			 * If an older reason was waiting but the window has already
-			 * expired, the event that just arrived is newer and wins.
-			 */
-			pendingSnapshotReason = null;
+	private void requestSnapshot(
+	        String snapshotReason,
+	        int settleTicks
+	)
+	{
+	        if (
+	                snapshotReason == null ||
+	                        snapshotReason.isBlank() ||
+	                        client.getLocalPlayer() == null
+	        )
+	        {
+	                return;
+	        }
 
-			sendSnapshot(snapshotReason);
-			lastUploadTime =
-					System.currentTimeMillis();
-			return;
-		}
+	        String previousReason =
+	                snapshotScheduler.getPendingReason();
 
-		if (
-				pendingSnapshotReason != null &&
-						!pendingSnapshotReason.equals(snapshotReason)
-		)
-		{
-			log.debug(
-					"PUSH RATE LIMIT: replacing pending '{}' with newer '{}'",
-					pendingSnapshotReason,
-					snapshotReason
-			);
-		}
+	        if (
+	                previousReason != null &&
+	                        !previousReason.equals(snapshotReason)
+	        )
+	        {
+	                log.debug(
+	                        "PUSH SCHEDULER: coalescing pending '{}' with newer '{}'",
+	                        previousReason,
+	                        snapshotReason
+	                );
+	        }
 
-		pendingSnapshotReason = snapshotReason;
+	        snapshotScheduler.schedule(
+	                snapshotReason,
+	                client.getTickCount(),
+	                settleTicks
+	        );
 	}
 
 
 	private void flushPendingSnapshotIfReady()
 	{
-		if (
-				pendingSnapshotReason == null ||
-						client.getLocalPlayer() == null
-		)
-		{
-			return;
-		}
+	        if (
+	                !snapshotScheduler.hasPending() ||
+	                        client.getLocalPlayer() == null
+	        )
+	        {
+	                return;
+	        }
 
-		long now =
-				System.currentTimeMillis();
+	        long currentTick =
+	                client.getTickCount();
 
-		if (
-				now - lastUploadTime <
-						MIN_UPLOAD_INTERVAL_MS
-		)
-		{
-			return;
-		}
+	        if (!snapshotScheduler.isDue(currentTick))
+	        {
+	                return;
+	        }
 
-		String snapshotReason =
-				pendingSnapshotReason;
+	        long now =
+	                System.currentTimeMillis();
 
-		pendingSnapshotReason = null;
+	        if (
+	                lastUploadTime != 0L &&
+	                        now - lastUploadTime <
+	                                MIN_UPLOAD_INTERVAL_MS
+	        )
+	        {
+	                return;
+	        }
 
-		log.debug(
-				"PUSH RATE LIMIT: sending newest pending '{}'",
-				snapshotReason
-		);
+	        String snapshotReason =
+	                snapshotScheduler.takeIfDue(currentTick);
 
-		sendSnapshot(snapshotReason);
-		lastUploadTime =
-				System.currentTimeMillis();
+	        if (snapshotReason == null)
+	        {
+	                return;
+	        }
+
+	        log.debug(
+	                "PUSH SCHEDULER: sending pending '{}'",
+	                snapshotReason
+	        );
+
+	        sendSnapshot(snapshotReason);
+	        lastUploadTime =
+	                System.currentTimeMillis();
 	}
 
 
@@ -2593,6 +2639,11 @@ public class OraclePlugin extends Plugin
 				client.getItemContainer(
 						InventoryID.WORN
 				);
+
+		observeMotherlodeSack(
+		        null,
+		        false
+		);
 
 		observeDizanasQuiverAmmoIfContext(
 		        null,
