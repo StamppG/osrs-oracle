@@ -98,7 +98,7 @@ The client MUST NOT:
 | Rune pouch | RUNE_POUCH_TYPE_1..6 + QUANTITY_1..6 | ITEM_STATE | IMPLEMENTED_SOURCE_PROVEN |
 | Essence pouches | essence pouch amount/type/degradation vars | ITEM_STATE | IMPLEMENTED_SOURCE_PROVEN |
 | Bolt pouch | XBOWS_POUCH slot/quantity vars | ITEM_STATE | NEEDS_OBSERVATION_PROOF |
-| Plank sack | PLANK_SACK_* vars | ACCOUNT_STORAGE | NEEDS_OBSERVATION_PROOF |
+| Plank sack | PLANK_SACK_* varbits + ItemID.PLANK_SACK inventory context | ITEM_STATE / ACCOUNT / PERSONAL | IMPLEMENTED_NEEDS_RUNTIME_PROOF |
 | Master scroll book | BOOKOFSCROLLS* vars | ACCOUNT_STORAGE | NEEDS_DECODER |
 | Fossil Island storage | FOSSIL_STORAGE* vars | ACCOUNT_STORAGE | NEEDS_OBSERVATION_PROOF |
 | Hallowed Sepulchre storage | HALLOWED_STORAGE_* vars | ACCOUNT_STORAGE | NEEDS_OBSERVATION_PROOF |

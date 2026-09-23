@@ -200,7 +200,8 @@ public class SnapshotEvidenceTest
                         null,
                         0,
                         null,
-                        "2026-09-20T20:59:59Z"
+                        "2026-09-20T20:59:59Z",
+                        null
                 );
 
         assertTrue(json.contains(
@@ -214,6 +215,46 @@ public class SnapshotEvidenceTest
         assertTrue(json.contains(
                 "\"stashUnits\":{\"status\":\"OBSERVED\"," +
                         "\"observedAt\":\"2026-09-20T20:59:59Z\"}"
+        ));
+    }
+
+    @Test
+    public void reportsPlankSackCoverageIndependently()
+    {
+        String json =
+                SnapshotEvidence.collect(
+                        "2026-09-23T05:00:00Z",
+                        "HEARTBEAT",
+                        "session-plank",
+                        1,
+                        false,
+                        false,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        0,
+                        null,
+                        null,
+                        "2026-09-23T04:59:59Z"
+                );
+
+        assertTrue(json.contains(
+                "\"plankSack\":{\"status\":\"OBSERVED\"," +
+                        "\"observedAt\":\"2026-09-23T04:59:59Z\"}"
         ));
     }
 }

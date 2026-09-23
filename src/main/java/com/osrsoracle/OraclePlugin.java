@@ -182,6 +182,8 @@ public class OraclePlugin extends Plugin
           new ObservedPotionStorageState();
   private final ObservedMotherlodeSackState cachedMotherlodeSackState =
           new ObservedMotherlodeSackState();
+  private final ObservedPlankSackState cachedPlankSackState =
+          new ObservedPlankSackState();
 
 
 
@@ -339,6 +341,7 @@ public class OraclePlugin extends Plugin
 		cachedDeathsOfficeStorageState.reset();
 		cachedPotionStorageState.reset();
 		cachedMotherlodeSackState.reset();
+		cachedPlankSackState.reset();
 		cachedLootingBagState.reset();
 		cachedSeedBoxState.reset();
 		cachedTackleBoxState.reset();
@@ -1934,6 +1937,15 @@ public class OraclePlugin extends Plugin
 		        return;
 		}
 
+		if (containerId == InventoryID.INV)
+		{
+			observePlankSackIfContext(
+				"PLANK_SACK_CONTEXT",
+				false
+			);
+			return;
+		}
+
 		ObservedItemContainerState state;
 		String snapshotReason;
 
@@ -2061,6 +2073,14 @@ public class OraclePlugin extends Plugin
                                   true
                   );
           }
+
+		if (isPlankSackVarbit(event.getVarbitId()))
+		{
+			observePlankSackIfContext(
+				"PLANK_SACK",
+				true
+			);
+		}
   }
 
 	@Subscribe
@@ -2159,6 +2179,69 @@ public class OraclePlugin extends Plugin
                   requestSnapshot(snapshotReason);
           }
   }
+
+	private void observePlankSackIfContext(
+        String snapshotReason,
+        boolean requestUpload
+	)
+	{
+        if (!containsItem(
+                client.getItemContainer(InventoryID.INV),
+                ItemID.PLANK_SACK
+        ))
+        {
+                return;
+        }
+
+        boolean accepted =
+                cachedPlankSackState.observe(
+                        client.getVarbitValue(VarbitID.PLANK_SACK_PLAIN),
+                        client.getVarbitValue(VarbitID.PLANK_SACK_OAK),
+                        client.getVarbitValue(VarbitID.PLANK_SACK_TEAK),
+                        client.getVarbitValue(VarbitID.PLANK_SACK_MAHOGANY),
+                        client.getVarbitValue(VarbitID.PLANK_SACK_CAMPHOR),
+                        client.getVarbitValue(VarbitID.PLANK_SACK_IRONWOOD),
+                        client.getVarbitValue(VarbitID.PLANK_SACK_ROSEWOOD),
+                        Instant.now().toString()
+                );
+
+        if (accepted && requestUpload)
+        {
+                requestSnapshot(snapshotReason);
+        }
+	}
+
+	private boolean isPlankSackVarbit(int varbitId)
+	{
+        return varbitId == VarbitID.PLANK_SACK_PLAIN ||
+                varbitId == VarbitID.PLANK_SACK_OAK ||
+                varbitId == VarbitID.PLANK_SACK_TEAK ||
+                varbitId == VarbitID.PLANK_SACK_MAHOGANY ||
+                varbitId == VarbitID.PLANK_SACK_CAMPHOR ||
+                varbitId == VarbitID.PLANK_SACK_IRONWOOD ||
+                varbitId == VarbitID.PLANK_SACK_ROSEWOOD;
+	}
+
+	private boolean containsItem(
+        ItemContainer container,
+        int itemId
+	)
+	{
+        if (container == null)
+        {
+                return false;
+        }
+
+        for (Item item : container.getItems())
+        {
+                if (item != null && item.getId() == itemId)
+                {
+                        return true;
+                }
+        }
+
+        return false;
+	}
 
 	private void observeDizanasQuiverAmmoIfContext(
 	        String snapshotReason,
@@ -2516,6 +2599,11 @@ public class OraclePlugin extends Plugin
 		        false
 		);
 
+		observePlankSackIfContext(
+		        null,
+		        false
+		);
+
 
 		ItemContainer seedVault =
 				client.getItemContainer(
@@ -2832,7 +2920,8 @@ public class OraclePlugin extends Plugin
 						cachedCollectionLogCapturedAt,
 						cachedCollectionLogPages.size(),
 						collectionInstantCapturedAt,
-						cachedStashState.getObservedAt()
+						cachedStashState.getObservedAt(),
+						cachedPlankSackState.getObservedAt()
 				);
 
 		String diaryTaskStateJson = AchievementDiaryState.collect(client);
@@ -2859,6 +2948,9 @@ public class OraclePlugin extends Plugin
                           observedPotionStoragePayload(cachedPotionStorageState);
           String motherlodeSackJson =
                           observedMotherlodeSackPayload(cachedMotherlodeSackState);
+
+		String plankSackJson =
+				cachedPlankSackState.toJson();
 
 
 
@@ -3462,6 +3554,7 @@ public class OraclePlugin extends Plugin
 								"\"deathsOfficeStorage\":%s," +
 								"\"potionStorage\":%s," +
 								"\"motherlodeSack\":%s," +
+								"\"plankSack\":%s," +
 								"\"lootingBag\":%s," +
 								"\"seedBox\":%s," +
 								"\"tackleBox\":%s," +
@@ -3510,6 +3603,7 @@ public class OraclePlugin extends Plugin
 						deathsOfficeStorageJson,
 						potionStorageJson,
 						motherlodeSackJson,
+						plankSackJson,
 						lootingBagJson,
 						seedBoxJson,
 						tackleBoxJson,

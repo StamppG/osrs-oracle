@@ -43,7 +43,8 @@ final class SnapshotEvidence
             String collectionLogObservedAt,
             int collectionLogPages,
             String collectionLogInstantObservedAt,
-            String stashUnitsObservedAt
+            String stashUnitsObservedAt,
+            String plankSackObservedAt
     )
     {
         String mode =
@@ -121,6 +122,11 @@ final class SnapshotEvidence
                 observation(
                         motherlodeSackObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
                         motherlodeSackObservedAt
+                ) +
+                ",\"plankSack\":" +
+                observation(
+                        plankSackObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
+                        plankSackObservedAt
                 ) +
                 ",\"lootingBag\":" +
                 observation(
@@ -234,6 +240,7 @@ final class SnapshotEvidence
                 collectionLogObservedAt,
                 collectionLogPages,
                 collectionLogInstantObservedAt,
+                null,
                 null
         );
     }
