@@ -249,6 +249,7 @@ public class OraclePlugin extends Plugin
 
 	private String entryIntentReason = null;
 	private String pendingEntrySnapshotReason = null;
+	private boolean lootingBagWidgetWasVisible = false;
 
 
 	private boolean collectionNotificationStarted = false;
@@ -337,6 +338,7 @@ public class OraclePlugin extends Plugin
 		snapshotSequence = 0;
 		snapshotScheduler.clear();
 		entryObservationSettleGuard.reset();
+		lootingBagWidgetWasVisible = false;
 		cachedBankState.reset();
 		cachedSeedVaultState.reset();
 		cachedGimStorageState.reset();
@@ -441,6 +443,7 @@ public class OraclePlugin extends Plugin
 		}
 
 		advanceManualStashSync();
+		observeLootingBagWidgetIfOpened();
 
 		/*
 		 * BANK CACHE
@@ -2082,6 +2085,67 @@ public class OraclePlugin extends Plugin
 			);
 		}
   }
+
+	private void observeLootingBagWidgetIfOpened()
+	{
+		Widget bagItems = client.getWidget(
+				net.runelite.api.widgets.ComponentID.LOOTING_BAG_LOOTING_BAG_INVENTORY
+		);
+
+		boolean visible =
+				bagItems != null &&
+				!bagItems.isHidden();
+
+		if (!visible)
+		{
+			lootingBagWidgetWasVisible = false;
+			return;
+		}
+
+		if (lootingBagWidgetWasVisible)
+		{
+			return;
+		}
+
+		lootingBagWidgetWasVisible = true;
+
+		Widget[] children = bagItems.getDynamicChildren();
+		int[] itemIds = new int[children.length];
+
+		for (int slot = 0; slot < children.length; slot++)
+		{
+			Widget child = children[slot];
+			itemIds[slot] =
+					child == null
+							? -1
+							: child.getItemId();
+		}
+
+		if (
+				!LootingBagWidgetState.isAuthoritativeEmpty(
+						true,
+						itemIds
+				)
+		)
+		{
+			return;
+		}
+
+		boolean accepted =
+				cachedLootingBagState.observe(
+						new Item[0],
+						Instant.now().toString()
+				);
+
+		if (accepted)
+		{
+			requestSnapshot(
+					"PORTABLE_LOOTING_BAG",
+					UI_SNAPSHOT_SETTLE_TICKS
+			);
+		}
+	}
+
 
 	@Subscribe
 	public void onWidgetLoaded(
