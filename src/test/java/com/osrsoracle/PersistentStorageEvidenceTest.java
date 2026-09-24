@@ -70,9 +70,10 @@ public class PersistentStorageEvidenceTest
 
         varps.put(VarPlayerID.TOA_PICKAXE_STORAGE, 18);
 
-        varps.put(VarPlayerID.BOOKOFSCROLLS1, -1);
-        varps.put(VarPlayerID.BOOKOFSCROLLS2, 22);
-        varps.put(VarPlayerID.BOOKOFSCROLLS7, 77);
+        varbits.put(VarbitID.BOOKOFSCROLLS_NARDAH, 21);
+        varbits.put(VarbitID.BOOKOFSCROLLS_WATSON_HIGHBITS, 2);
+        varbits.put(VarbitID.BOOKOFSCROLLS_WATSON_LOWBITS, 3);
+        varbits.put(VarbitID.BOOKOFSCROLLS_ARDEAGLAIS, 77);
 
         String json = PersistentStorageEvidence.collect(
                 new PersistentStorageEvidence.ValueSource()
@@ -138,31 +139,45 @@ public class PersistentStorageEvidenceTest
 
         assertTrue(json.contains("\"storedPickaxeRaw\":18"));
 
-        assertTrue(json.contains(
-                "\"packedWords\":[4294967295,22,0,0,0,0,77]"
-        ));
+        assertTrue(json.contains("\"masterScrollBook\":{\"nardah\":21"));
+        assertTrue(json.contains("\"watson\":515"));
+        assertTrue(json.contains("\"ardeaglais\":77"));
     }
 
     @Test
     public void liveItemStateContainsOnlyProvenLiveSources()
     {
         Map<Integer, Integer> varbits = new HashMap<>();
+        Map<Integer, Integer> varps = new HashMap<>();
 
         varbits.put(VarbitID.RUNE_POUCH_TYPE_1, 9);
         varbits.put(VarbitID.RUNE_POUCH_QUANTITY_1, 2500);
         varbits.put(VarbitID.SMALL_ESSENCE_POUCH, 3);
         varbits.put(VarbitID.SMALL_ESSENCE_POUCH_TYPE, 1);
 
-        /*
-         * Deliberately populate sources which are NOT yet proven safe for
-         * arbitrary live snapshots. They must not leak into this dataset.
-         */
         varbits.put(VarbitID.XBOWS_POUCH_SLOT1, 7);
+        varbits.put(VarbitID.XBOWS_POUCH_NUM1, 125);
+
+        varbits.put(VarbitID.SCROLL_CASE_BEGINNER_MINOR, 14);
+        varbits.put(VarbitID.SCROLL_CASE_BEGINNER_MAJOR, 15);
+        varbits.put(VarbitID.SCROLL_CASE_MIMIC, 16);
+        varps.put(VarPlayerID.SCROLL_CASE_TRACK, 17);
+
+        varbits.put(VarbitID.BOOKOFSCROLLS_NARDAH, 21);
+        varbits.put(VarbitID.BOOKOFSCROLLS_WATSON_HIGHBITS, 2);
+        varbits.put(VarbitID.BOOKOFSCROLLS_WATSON_LOWBITS, 3);
+        varbits.put(VarbitID.BOOKOFSCROLLS_ARDEAGLAIS, 77);
+
+        /*
+         * Deliberately populate sources which are NOT yet proven safe
+         * for arbitrary live snapshots. They must not leak into this
+         * dataset.
+         */
         varbits.put(VarbitID.FARMING_TOOLS_RAKE, 1);
         varbits.put(VarbitID.PLANK_SACK_PLAIN, 10);
         varbits.put(VarbitID.FOSSIL_STORAGE_SMALL_UNID, 4);
         varbits.put(VarbitID.HALLOWED_STORAGE_TOKEN, 11);
-        varbits.put(VarbitID.SCROLL_CASE_BEGINNER_MINOR, 14);
+        varps.put(VarPlayerID.TOA_PICKAXE_STORAGE, 18);
 
         String json = PersistentStorageEvidence.collectLiveItemState(
                 new PersistentStorageEvidence.ValueSource()
@@ -176,22 +191,30 @@ public class PersistentStorageEvidenceTest
                     @Override
                     public int varp(int id)
                     {
-                        return 0;
+                        return varps.getOrDefault(id, 0);
                     }
                 }
         );
 
         assertTrue(json.contains("\"runePouch\":"));
         assertTrue(json.contains("\"essencePouches\":"));
+        assertTrue(json.contains(
+                "\"boltPouch\":{\"slots\":[{\"typeRaw\":7,\"quantityRaw\":125}"
+        ));
+        assertTrue(json.contains(
+                "\"clueScrollCaseProgression\":{\"beginner\":{\"minorRaw\":14,\"majorRaw\":15}"
+        ));
+        assertTrue(json.contains("\"mimicRaw\":16"));
+        assertTrue(json.contains("\"trackRaw\":17"));
+        assertTrue(json.contains("\"masterScrollBook\":{\"nardah\":21"));
+        assertTrue(json.contains("\"watson\":515"));
+        assertTrue(json.contains("\"ardeaglais\":77"));
 
-        assertTrue(!json.contains("\"boltPouch\":"));
         assertTrue(!json.contains("\"toolLeprechaun\":"));
         assertTrue(!json.contains("\"plankSack\":"));
         assertTrue(!json.contains("\"fossilStorage\":"));
         assertTrue(!json.contains("\"hallowedStorage\":"));
-        assertTrue(!json.contains("\"clueScrollCase\":"));
         assertTrue(!json.contains("\"toa\":"));
-        assertTrue(!json.contains("\"masterScrollBook\":"));
     }
     @Test
     public void preservesRawZeroValuesWithoutInventingMeaning()
@@ -221,7 +244,9 @@ public class PersistentStorageEvidenceTest
         ));
         assertTrue(json.contains("\"storedPickaxeRaw\":0"));
         assertTrue(json.contains(
-                "\"packedWords\":[0,0,0,0,0,0,0]"
+                "\"masterScrollBook\":{\"nardah\":0"
         ));
+        assertTrue(json.contains("\"watson\":0"));
+        assertTrue(json.contains("\"ardeaglais\":0"));
     }
 }

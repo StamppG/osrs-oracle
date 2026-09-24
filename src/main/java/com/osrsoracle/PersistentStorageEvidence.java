@@ -58,6 +58,9 @@ final class PersistentStorageEvidence
         return "{" +
                 "\"runePouch\":" + runePouch(source) +
                 ",\"essencePouches\":" + essencePouches(source) +
+                ",\"boltPouch\":" + boltPouch(source) +
+                ",\"clueScrollCaseProgression\":" + clueScrollCase(source) +
+                ",\"masterScrollBook\":" + masterScrollBook(source) +
                 "}";
     }
     static String collect(ValueSource source)
@@ -379,28 +382,32 @@ final class PersistentStorageEvidence
 
     private static String masterScrollBook(ValueSource source)
     {
-        int[] words = {
-            VarPlayerID.BOOKOFSCROLLS1,
-            VarPlayerID.BOOKOFSCROLLS2,
-            VarPlayerID.BOOKOFSCROLLS3,
-            VarPlayerID.BOOKOFSCROLLS4,
-            VarPlayerID.BOOKOFSCROLLS5,
-            VarPlayerID.BOOKOFSCROLLS6,
-            VarPlayerID.BOOKOFSCROLLS7
-        };
+        int watson =
+                source.varbit(VarbitID.BOOKOFSCROLLS_WATSON_HIGHBITS) * 256 +
+                source.varbit(VarbitID.BOOKOFSCROLLS_WATSON_LOWBITS);
 
-        StringJoiner values = new StringJoiner(",", "[", "]");
-
-        for (int word : words)
-        {
-            values.add(
-                    Long.toUnsignedString(
-                            Integer.toUnsignedLong(source.varp(word))
-                    )
-            );
-        }
-
-        return "{\"packedWords\":" + values + "}";
+        return "{" +
+                "\"nardah\":" + source.varbit(VarbitID.BOOKOFSCROLLS_NARDAH) +
+                ",\"digsite\":" + source.varbit(VarbitID.BOOKOFSCROLLS_DIGSITE) +
+                ",\"feldip\":" + source.varbit(VarbitID.BOOKOFSCROLLS_FELDIP) +
+                ",\"lunarIsle\":" + source.varbit(VarbitID.BOOKOFSCROLLS_LUNARISLE) +
+                ",\"mortton\":" + source.varbit(VarbitID.BOOKOFSCROLLS_MORTTON) +
+                ",\"pestControl\":" + source.varbit(VarbitID.BOOKOFSCROLLS_PESTCONTROL) +
+                ",\"piscatoris\":" + source.varbit(VarbitID.BOOKOFSCROLLS_PISCATORIS) +
+                ",\"taiBwo\":" + source.varbit(VarbitID.BOOKOFSCROLLS_TAIBWO) +
+                ",\"elf\":" + source.varbit(VarbitID.BOOKOFSCROLLS_ELF) +
+                ",\"mosLes\":" + source.varbit(VarbitID.BOOKOFSCROLLS_MOSLES) +
+                ",\"lumberyard\":" + source.varbit(VarbitID.BOOKOFSCROLLS_LUMBERYARD) +
+                ",\"zulAndra\":" + source.varbit(VarbitID.BOOKOFSCROLLS_ZULANDRA) +
+                ",\"cerberus\":" + source.varbit(VarbitID.BOOKOFSCROLLS_CERBERUS) +
+                ",\"revenants\":" + source.varbit(VarbitID.BOOKOFSCROLLS_REVENANTS) +
+                ",\"watson\":" + watson +
+                ",\"guthixianTemple\":" + source.varbit(VarbitID.BOOKOFSCROLLS_GUTHIXIAN_TEMPLE) +
+                ",\"spiderCave\":" + source.varbit(VarbitID.BOOKOFSCROLLS_SPIDERCAVE) +
+                ",\"colossalWyrm\":" + source.varbit(VarbitID.BOOKOFSCROLLS_COLOSSAL_WYRM) +
+                ",\"chasmOfFire\":" + source.varbit(VarbitID.BOOKOFSCROLLS_CHASMOFFIRE) +
+                ",\"ardeaglais\":" + source.varbit(VarbitID.BOOKOFSCROLLS_ARDEAGLAIS) +
+                "}";
     }
 
     private static String varbitArray(
