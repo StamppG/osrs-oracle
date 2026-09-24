@@ -313,8 +313,10 @@ final class ContextualStorageChatParser
     )
     {
         if (
-                type == ChatMessageType.GAMEMESSAGE &&
-                        message.equalsIgnoreCase("Your barrel is empty.")
+                ((type == ChatMessageType.GAMEMESSAGE &&
+                        message.equalsIgnoreCase("Your barrel is empty.")) ||
+                        (type == ChatMessageType.MESBOX &&
+                                message.equalsIgnoreCase("The barrel is empty.")))
         )
         {
             Observation observation = empty(Dataset.FISH_BARREL);

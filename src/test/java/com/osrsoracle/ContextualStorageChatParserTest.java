@@ -203,6 +203,28 @@ public class ContextualStorageChatParserTest
     }
 
     @Test
+    public void parsesLiveFishBarrelMesboxEmpty()
+    {
+        ContextualStorageChatParser parser =
+                new ContextualStorageChatParser();
+
+        parser.armCheck("Fish barrel");
+
+        ContextualStorageChatParser.Observation empty =
+                parser.accept(
+                        ChatMessageType.MESBOX,
+                        "The barrel is empty."
+                );
+
+        assertNotNull(empty);
+        assertEquals(
+                ContextualStorageChatParser.Dataset.FISH_BARREL,
+                empty.getDataset()
+        );
+        assertEquals(0, empty.getEntries().length);
+    }
+
+    @Test
     public void parsesLogBasketPopulatedAndEmpty()
     {
         ContextualStorageChatParser parser =
