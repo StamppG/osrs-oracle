@@ -450,9 +450,10 @@ public class OraclePlugin extends Plugin
 						InventoryID.BANK
 				);
 
-		cachedBankState.observeIfPresent(
-			bank,
-			Instant.now().toString()
+		observeOwnedItemContainer(
+				cachedBankState,
+				bank,
+				Instant.now().toString()
 		);
 
 		/*
@@ -463,9 +464,10 @@ public class OraclePlugin extends Plugin
 						InventoryID.SEED_VAULT
 				);
 
-		cachedSeedVaultState.observeIfPresent(
-			seedVault,
-			Instant.now().toString()
+		observeOwnedItemContainer(
+				cachedSeedVaultState,
+				seedVault,
+				Instant.now().toString()
 		);
 
 		/*
@@ -2613,6 +2615,32 @@ public class OraclePlugin extends Plugin
 	}
 
 
+	private boolean observeOwnedItemContainer(
+			ObservedItemContainerState state,
+			ItemContainer container,
+			String observedAt
+	)
+	{
+		if (container == null)
+		{
+			return false;
+		}
+
+		Item[] normalized =
+				OwnedItemContainerNormalizer.withoutPlaceholders(
+						container.getItems(),
+						itemId ->
+								client
+										.getItemDefinition(itemId)
+										.getPlaceholderTemplateId() != -1
+				);
+
+		return state.observe(
+				normalized,
+				observedAt
+		);
+	}
+
 	private void sendSnapshot(
 			String snapshotReason
 	)
@@ -2665,9 +2693,10 @@ public class OraclePlugin extends Plugin
 		/*
 		 * Refresh live bank cache if the bank is currently available.
 		 */
-		cachedBankState.observeIfPresent(
-			bank,
-			Instant.now().toString()
+		observeOwnedItemContainer(
+				cachedBankState,
+				bank,
+				Instant.now().toString()
 		);
 
 
@@ -2675,9 +2704,10 @@ public class OraclePlugin extends Plugin
 		 * Refresh live Seed Vault cache if the Seed Vault is currently
 		 * available.
 		 */
-		cachedSeedVaultState.observeIfPresent(
-			seedVault,
-			Instant.now().toString()
+		observeOwnedItemContainer(
+				cachedSeedVaultState,
+				seedVault,
+				Instant.now().toString()
 		);
 
 
