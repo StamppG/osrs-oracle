@@ -69,14 +69,23 @@
 
 ## Testing
 
-You cannot verify plugin behavior yourself. Even if you have screen-capture or computer-use tools available, **do not use them to interact with RuneScape** — automating game input violates Jagex's third-party client guidelines and will get the user's account banned. Only the user can confirm a plugin works in-game.
+You cannot verify plugin behavior yourself. Even if you have screen-capture or computer-use tools available, **do not use them to interact with RuneScape** — automating game input violates Jagex's third-party client guidelines and will get the user's account banned. Only the user can perform the in-game actions.
 
-After completing a task, do not declare it done. Instead:
+For SagaSeer project work, formal live acceptance belongs to the dedicated QA / Testing lane, not to RuneLite Engine self-certification.
 
-1. Offer to launch RuneLite for the user by running `./gradlew run` from the plugin's root directory.
-2. Instruct the user to follow the "Using Jagex Accounts" instructions found at https://github.com/runelite/runelite/wiki/Using-Jagex-Accounts to login to the development client.
-3. Tell the user *what to test* — the specific behavior you changed, the golden path, and any edge cases worth exercising.
-4. Wait for the user to confirm the feature works in-game before considering the task complete. A clean JVM start is not a passing test.
+After implementation reaches a stable candidate:
+
+1. Run the applicable automated tests and `git diff --check`; remove temporary diagnostic probes.
+2. Commit and push the candidate to the active feature branch.
+3. Post a HANDOFF to QA with the repository, branch, exact pushed SHA, automated evidence, specific acceptance cases, known untestables, and the user actions needed to exercise the behavior.
+4. QA guides the user through the live/manual steps and owns the formal PASS / FAIL / BLOCKER / NOT TESTABLE classification.
+5. If QA finds a defect, return to Engine, fix it, retest, push a new SHA, and hand the new checkpoint back to QA.
+6. If any behavior-affecting code changes after QA passes, rerun the affected QA.
+7. Do not declare the feature/slice closed merely because the candidate is pushed or starts cleanly; PM/release ownership closes it after the applicable evidence is complete.
+
+A minimal Engine smoke check is acceptable when needed to prove the candidate can be exercised, but it must not replace independent QA.
+
+When the user needs a development client, offer to launch RuneLite with `./gradlew run` from the plugin root and use the RuneLite "Using Jagex Accounts" instructions for login.
 
 ---
 
