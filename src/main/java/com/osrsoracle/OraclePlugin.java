@@ -22,6 +22,7 @@ import net.runelite.api.FontID;
 
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.ChatMessage;
+import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.VarbitChanged;
@@ -188,6 +189,22 @@ public class OraclePlugin extends Plugin
   private final ObservedPlankSackState cachedPlankSackState =
           new ObservedPlankSackState();
 
+  private final ObservedContextualStorageState cachedHerbSackState =
+          new ObservedContextualStorageState();
+  private final ObservedContextualStorageState cachedGemBagState =
+          new ObservedContextualStorageState();
+  private final ObservedContextualStorageState cachedGemSatchelState =
+          new ObservedContextualStorageState();
+  private final ObservedContextualStorageState cachedCoalBagState =
+          new ObservedContextualStorageState();
+  private final ObservedContextualStorageState cachedFishBarrelState =
+          new ObservedContextualStorageState();
+  private final ObservedContextualStorageState cachedLogBasketState =
+          new ObservedContextualStorageState();
+
+  private final ContextualStorageChatParser contextualStorageChatParser =
+          new ContextualStorageChatParser();
+
 
 
 
@@ -349,6 +366,13 @@ public class OraclePlugin extends Plugin
 		cachedPotionStorageState.reset();
 		cachedMotherlodeSackState.reset();
 		cachedPlankSackState.reset();
+        cachedHerbSackState.reset();
+        cachedGemBagState.reset();
+        cachedGemSatchelState.reset();
+        cachedCoalBagState.reset();
+        cachedFishBarrelState.reset();
+        cachedLogBasketState.reset();
+        contextualStorageChatParser.reset();
 		cachedLootingBagState.reset();
 		cachedSeedBoxState.reset();
 		cachedTackleBoxState.reset();
@@ -431,6 +455,26 @@ public class OraclePlugin extends Plugin
 		}
 
 	}
+    @Subscribe
+    public void onMenuOptionClicked(MenuOptionClicked event)
+    {
+        if (client.getGameState() != GameState.LOGGED_IN)
+        {
+            return;
+        }
+
+        if (!"Check".equalsIgnoreCase(
+                stripTags(event.getMenuOption()).trim()
+        ))
+        {
+            return;
+        }
+
+        contextualStorageChatParser.armCheck(
+                stripTags(event.getMenuTarget()).trim()
+        );
+    }
+
 
 
 
@@ -444,6 +488,13 @@ public class OraclePlugin extends Plugin
 
 		advanceManualStashSync();
 		observeLootingBagWidgetIfOpened();
+		ContextualStorageChatParser.Observation contextualTickObservation =
+				contextualStorageChatParser.finishTick();
+
+		if (contextualTickObservation != null)
+		{
+			observeContextualStorageObservation(contextualTickObservation);
+		}
 
 		/*
 		 * BANK CACHE
@@ -599,6 +650,22 @@ public class OraclePlugin extends Plugin
 
 		String lowerMessage =
 				message.toLowerCase();
+
+		ContextualStorageChatParser.Observation contextualChatObservation =
+				contextualStorageChatParser.accept(
+						event.getType(),
+						message
+				);
+
+		if (contextualChatObservation != null)
+		{
+			observeContextualStorageObservation(
+					contextualChatObservation
+			);
+			return;
+		}
+
+
 
 		/*
 		 * ACHIEVEMENT DIARY COMPLETION
@@ -2705,6 +2772,57 @@ public class OraclePlugin extends Plugin
 		);
 	}
 
+	private void observeContextualStorageObservation(
+			ContextualStorageChatParser.Observation observation
+	)
+	{
+		if (observation == null)
+		{
+			return;
+		}
+
+		ObservedContextualStorageState state;
+		String snapshotReason;
+
+		switch (observation.getDataset())
+		{
+			case HERB_SACK:
+				state = cachedHerbSackState;
+				snapshotReason = "PORTABLE_HERB_SACK";
+				break;
+			case GEM_BAG:
+				state = cachedGemBagState;
+				snapshotReason = "PORTABLE_GEM_BAG";
+				break;
+			case GEM_SATCHEL:
+				state = cachedGemSatchelState;
+				snapshotReason = "PORTABLE_GEM_SATCHEL";
+				break;
+			case COAL_BAG:
+				state = cachedCoalBagState;
+				snapshotReason = "PORTABLE_COAL_BAG";
+				break;
+			case FISH_BARREL:
+				state = cachedFishBarrelState;
+				snapshotReason = "PORTABLE_FISH_BARREL";
+				break;
+			case LOG_BASKET:
+				state = cachedLogBasketState;
+				snapshotReason = "PORTABLE_LOG_BASKET";
+				break;
+			default:
+				return;
+		}
+
+		if (state.observe(
+				observation.getEntries(),
+				Instant.now().toString()
+		))
+		{
+			requestSnapshot(snapshotReason);
+		}
+	}
+
 	private void sendSnapshot(
 			String snapshotReason
 	)
@@ -3066,7 +3184,13 @@ public class OraclePlugin extends Plugin
 						cachedCollectionLogPages.size(),
 						collectionInstantCapturedAt,
 						cachedStashState.getObservedAt(),
-						cachedPlankSackState.getObservedAt()
+                        cachedPlankSackState.getObservedAt(),
+                        cachedHerbSackState.getObservedAt(),
+                        cachedGemBagState.getObservedAt(),
+                        cachedGemSatchelState.getObservedAt(),
+                        cachedCoalBagState.getObservedAt(),
+                        cachedFishBarrelState.getObservedAt(),
+                        cachedLogBasketState.getObservedAt()
 				);
 
 		String diaryTaskStateJson = AchievementDiaryState.collect(client);
@@ -3096,6 +3220,24 @@ public class OraclePlugin extends Plugin
 
 		String plankSackJson =
 				cachedPlankSackState.toJson();
+
+        String herbSackJson =
+                cachedHerbSackState.toJson();
+
+        String gemBagJson =
+                cachedGemBagState.toJson();
+
+        String gemSatchelJson =
+                cachedGemSatchelState.toJson();
+
+        String coalBagJson =
+                cachedCoalBagState.toJson();
+
+        String fishBarrelJson =
+                cachedFishBarrelState.toJson();
+
+        String logBasketJson =
+                cachedLogBasketState.toJson();
 
 
 
@@ -3700,6 +3842,12 @@ public class OraclePlugin extends Plugin
 								"\"potionStorage\":%s," +
 								"\"motherlodeSack\":%s," +
 								"\"plankSack\":%s," +
+                                                          "\"herbSack\":%s," +
+                                                          "\"gemBag\":%s," +
+                                                          "\"gemSatchel\":%s," +
+                                                          "\"coalBag\":%s," +
+                                                          "\"fishBarrel\":%s," +
+                                                          "\"logBasket\":%s," +
 								"\"lootingBag\":%s," +
 								"\"seedBox\":%s," +
 								"\"tackleBox\":%s," +
@@ -3749,6 +3897,12 @@ public class OraclePlugin extends Plugin
 						potionStorageJson,
 						motherlodeSackJson,
 						plankSackJson,
+                                          herbSackJson,
+                                          gemBagJson,
+                                          gemSatchelJson,
+                                          coalBagJson,
+                                          fishBarrelJson,
+                                          logBasketJson,
 						lootingBagJson,
 						seedBoxJson,
 						tackleBoxJson,

@@ -201,6 +201,12 @@ public class SnapshotEvidenceTest
                         0,
                         null,
                         "2026-09-20T20:59:59Z",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
                         null
                 );
 
@@ -249,12 +255,42 @@ public class SnapshotEvidenceTest
                         0,
                         null,
                         null,
-                        "2026-09-23T04:59:59Z"
+                        "2026-09-23T04:59:59Z",
+                        "2026-09-23T04:59:58Z",
+                        "2026-09-23T04:59:57Z",
+                        "2026-09-23T04:59:56Z",
+                        "2026-09-23T04:59:55Z",
+                        "2026-09-23T04:59:54Z",
+                        "2026-09-23T04:59:53Z"
                 );
 
         assertTrue(json.contains(
                 "\"plankSack\":{\"status\":\"OBSERVED\"," +
                         "\"observedAt\":\"2026-09-23T04:59:59Z\"}"
+        ));
+        assertTrue(json.contains(
+                "\"herbSack\":{\"status\":\"OBSERVED\"," +
+                        "\"observedAt\":\"2026-09-23T04:59:58Z\"}"
+        ));
+        assertTrue(json.contains(
+                "\"gemBag\":{\"status\":\"OBSERVED\"," +
+                        "\"observedAt\":\"2026-09-23T04:59:57Z\"}"
+        ));
+        assertTrue(json.contains(
+                "\"gemSatchel\":{\"status\":\"OBSERVED\"," +
+                        "\"observedAt\":\"2026-09-23T04:59:56Z\"}"
+        ));
+        assertTrue(json.contains(
+                "\"coalBag\":{\"status\":\"OBSERVED\"," +
+                        "\"observedAt\":\"2026-09-23T04:59:55Z\"}"
+        ));
+        assertTrue(json.contains(
+                "\"fishBarrel\":{\"status\":\"OBSERVED\"," +
+                        "\"observedAt\":\"2026-09-23T04:59:54Z\"}"
+        ));
+        assertTrue(json.contains(
+                "\"logBasket\":{\"status\":\"OBSERVED\"," +
+                        "\"observedAt\":\"2026-09-23T04:59:53Z\"}"
         ));
     }
 }

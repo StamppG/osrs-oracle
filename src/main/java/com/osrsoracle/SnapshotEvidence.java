@@ -44,7 +44,13 @@ final class SnapshotEvidence
             int collectionLogPages,
             String collectionLogInstantObservedAt,
             String stashUnitsObservedAt,
-            String plankSackObservedAt
+            String plankSackObservedAt,
+            String herbSackObservedAt,
+            String gemBagObservedAt,
+            String gemSatchelObservedAt,
+            String coalBagObservedAt,
+            String fishBarrelObservedAt,
+            String logBasketObservedAt
     )
     {
         String mode =
@@ -127,6 +133,36 @@ final class SnapshotEvidence
                 observation(
                         plankSackObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
                         plankSackObservedAt
+                ) +
+                ",\"herbSack\":" +
+                observation(
+                        herbSackObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
+                        herbSackObservedAt
+                ) +
+                ",\"gemBag\":" +
+                observation(
+                        gemBagObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
+                        gemBagObservedAt
+                ) +
+                ",\"gemSatchel\":" +
+                observation(
+                        gemSatchelObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
+                        gemSatchelObservedAt
+                ) +
+                ",\"coalBag\":" +
+                observation(
+                        coalBagObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
+                        coalBagObservedAt
+                ) +
+                ",\"fishBarrel\":" +
+                observation(
+                        fishBarrelObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
+                        fishBarrelObservedAt
+                ) +
+                ",\"logBasket\":" +
+                observation(
+                        logBasketObservedAt == null ? "NOT_OBSERVED" : "OBSERVED",
+                        logBasketObservedAt
                 ) +
                 ",\"lootingBag\":" +
                 observation(
@@ -240,6 +276,12 @@ final class SnapshotEvidence
                 collectionLogObservedAt,
                 collectionLogPages,
                 collectionLogInstantObservedAt,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
                 null,
                 null
         );
