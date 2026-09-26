@@ -1,5 +1,6 @@
 package com.osrsoracle;
 
+import com.google.gson.Gson;
 import com.google.inject.Provides;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
@@ -50,10 +51,7 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.cluescrolls.clues.emote.STASHUnit;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+
 
 import java.time.Instant;
 
@@ -78,7 +76,20 @@ public class OraclePlugin extends Plugin
 	@Inject
 	private OracleConfig config;
 
-	private final HttpClient httpClient = HttpClient.newHttpClient();
+    @Inject
+    private SnapshotTransport snapshotTransport;
+
+    @Inject
+    private Gson gson;
+
+    @Inject
+    private SnapshotItemSerializer snapshotItemSerializer;
+
+    @Inject
+    private SnapshotLiveStateCollector snapshotLiveStateCollector;
+
+    @Inject
+    private SnapshotCollectionLogSerializer snapshotCollectionLogSerializer;
 
     private static final long MIN_UPLOAD_INTERVAL_MS = 1000L;
     private static final int ENTRY_SNAPSHOT_SETTLE_TICKS = 3;
@@ -97,39 +108,6 @@ public class OraclePlugin extends Plugin
             15193
     );
 
-    private static final String[] ACCOUNT_TYPE_NAMES = {
-        "NORMAL",
-        "IRONMAN",
-        "ULTIMATE_IRONMAN",
-        "HARDCORE_IRONMAN",
-        "GROUP_IRONMAN",
-        "HARDCORE_GROUP_IRONMAN",
-        "UNRANKED_GROUP_IRONMAN"
-    };
-
-    private static final int[] CA_TASK_COMPLETION_VARPS = {
-        VarPlayerID.CA_TASK_COMPLETED_0,
-        VarPlayerID.CA_TASK_COMPLETED_1,
-        VarPlayerID.CA_TASK_COMPLETED_2,
-        VarPlayerID.CA_TASK_COMPLETED_3,
-        VarPlayerID.CA_TASK_COMPLETED_4,
-        VarPlayerID.CA_TASK_COMPLETED_5,
-        VarPlayerID.CA_TASK_COMPLETED_6,
-        VarPlayerID.CA_TASK_COMPLETED_7,
-        VarPlayerID.CA_TASK_COMPLETED_8,
-        VarPlayerID.CA_TASK_COMPLETED_9,
-        VarPlayerID.CA_TASK_COMPLETED_10,
-        VarPlayerID.CA_TASK_COMPLETED_11,
-        VarPlayerID.CA_TASK_COMPLETED_12,
-        VarPlayerID.CA_TASK_COMPLETED_13,
-        VarPlayerID.CA_TASK_COMPLETED_14,
-        VarPlayerID.CA_TASK_COMPLETED_15,
-        VarPlayerID.CA_TASK_COMPLETED_16,
-        VarPlayerID.CA_TASK_COMPLETED_17,
-        VarPlayerID.CA_TASK_COMPLETED_18,
-        VarPlayerID.CA_TASK_COMPLETED_19,
-        VarPlayerID.CA_TASK_COMPLETED_20
-    };
 
 	private long lastUploadTime = 0;
 	private final DeferredSnapshotScheduler snapshotScheduler = new DeferredSnapshotScheduler();
@@ -966,33 +944,9 @@ public class OraclePlugin extends Plugin
 						quantity
 				);
 			}
-			else
-			{
-			}
 
-			return;
-		}
-
-		/*
-		 * Retain the earlier DRAW_LIST stack probe for comparison.
-		 */
-		if (event.getScriptId() != ScriptID.COLLECTION_DRAW_LIST)
-		{
-			return;
-		}
-
-		int size = client.getIntStackSize();
-		int[] stack = client.getIntStack();
-
-		int stackStart = Math.max(0, size - 12);
-
-		StringJoiner values =
-				new StringJoiner(", ", "[", "]");
-
-		for (int i = stackStart; i < size; i++)
-		{
-			values.add(i + ":" + stack[i]);
-		}
+                    return;
+            }
 	}
 
 
@@ -2463,160 +2417,6 @@ public class OraclePlugin extends Plugin
 	        return false;
 	}
 
-  private String observedMotherlodeSackPayload(
-          ObservedMotherlodeSackState state
-  )
-  {
-          if (!state.hasObservation())
-          {
-                  return "{\"scope\":\"ACTIVITY\",\"ownership\":\"PERSONAL\",\"quantity\":null}";
-          }
-
-          return String.format(
-                          "{\"scope\":\"ACTIVITY\",\"ownership\":\"PERSONAL\",\"quantity\":%d}",
-                          state.getQuantity()
-          );
-  }
-
-  private String observedPotionStoragePayload(
-          ObservedPotionStorageState state
-  )
-  {
-          ObservedPotionStorageState.Entry[] entries =
-                          state.getEntries();
-
-          if (entries == null)
-          {
-                  return "{\"scope\":\"ACCOUNT\",\"ownership\":\"PERSONAL\",\"entries\":null}";
-          }
-
-          StringJoiner entryJson =
-                          new StringJoiner(
-                                          ",",
-                                          "[",
-                                          "]"
-                          );
-
-          for (ObservedPotionStorageState.Entry entry : entries)
-          {
-                  String itemName =
-                                  client
-                                                  .getItemDefinition(
-                                                                  entry.getItemId()
-                                                  )
-                                                  .getName();
-
-                  entryJson.add(
-                                  String.format(
-                                                  "{\"name\":\"%s\",\"id\":%d,\"amount\":%d,\"amountType\":\"%s\"}",
-                                                  escapeJson(itemName),
-                                                  entry.getItemId(),
-                                                  entry.getAmount(),
-                                                  entry.getAmountType()
-                                  )
-                  );
-          }
-
-          return String.format(
-                          "{\"scope\":\"ACCOUNT\",\"ownership\":\"PERSONAL\",\"entries\":%s}",
-                          entryJson
-          );
-  }
-
-	private String observedQuiverAmmoPayload(
-	        ObservedQuiverAmmoState state
-	)
-	{
-	        if (!state.hasObservation())
-	        {
-	                return "{\"scope\":\"ACCOUNT\",\"ownership\":\"PERSONAL\",\"ammoItemIdRaw\":null,\"ammoQuantity\":null}";
-	        }
-
-	        return String.format(
-	                "{\"scope\":\"ACCOUNT\",\"ownership\":\"PERSONAL\",\"ammoItemIdRaw\":%d,\"ammoQuantity\":%d}",
-	                state.getAmmoItemIdRaw(),
-	                state.getAmmoQuantity()
-	        );
-	}
-
-	/*
-	 * Serialize a retained observed container without changing ownership
-	 * semantics. A null item array means the container has never been
-	 * authoritatively observed in this client session; an empty array
-	 * means it was authoritatively observed empty.
-	 */
-	private String observedItemContainerPayload(
-			ObservedItemContainerState state
-	)
-	{
-		Item[] observedItems = state.getItems();
-
-		String scope =
-				state.getScope().name();
-
-		String ownership =
-				state.isShared()
-						? "SHARED"
-						: "PERSONAL";
-
-		if (observedItems == null)
-		{
-			return String.format(
-					"{\"scope\":\"%s\",\"ownership\":\"%s\",\"items\":null}",
-					scope,
-					ownership
-			);
-		}
-
-		StringJoiner items =
-				new StringJoiner(
-						",",
-						"[",
-						"]"
-				);
-
-		for (
-				int slot = 0;
-				slot < observedItems.length;
-				slot++
-		)
-		{
-			Item item = observedItems[slot];
-
-			if (
-					item == null ||
-							item.getId() <= 0
-			)
-			{
-				items.add("null");
-				continue;
-			}
-
-			String itemName =
-					client
-							.getItemDefinition(
-									item.getId()
-							)
-							.getName();
-
-			items.add(
-					String.format(
-							"{\"slot\":%d,\"name\":\"%s\",\"id\":%d,\"quantity\":%d}",
-						slot,
-						escapeJson(itemName),
-						item.getId(),
-						item.getQuantity()
-					)
-			);
-		}
-
-		return String.format(
-				"{\"scope\":\"%s\",\"ownership\":\"%s\",\"items\":%s}",
-			scope,
-			ownership,
-			items
-		);
-	}
 
 	/*
 	 * SNAPSHOT RATE LIMITER
@@ -2892,264 +2692,19 @@ public class OraclePlugin extends Plugin
 				Instant.now().toString()
 		);
 
+        String bankJson =
+                snapshotItemSerializer.bank(cachedBankState);
 
-		/*
-		 * BANK JSON
-		 */
-		Item[] cachedBankItems =
-		        cachedBankState.getItems();
+        String seedVaultJson =
+                snapshotItemSerializer.seedVault(cachedSeedVaultState);
 
-		String bankJson = "null";
+        String inventoryJson =
+                snapshotItemSerializer.inventory(inventory);
 
-		if (cachedBankItems != null)
-		{
-			StringJoiner bankItems =
-					new StringJoiner(
-							",",
-							"[",
-							"]"
-					);
-
-			for (
-					int slot = 0;
-					slot < cachedBankItems.length;
-					slot++
-			)
-			{
-				Item item =
-						cachedBankItems[slot];
-
-				if (item == null)
-				{
-					bankItems.add("null");
-				}
-				else
-				{
-					String itemName =
-							client
-									.getItemDefinition(
-											item.getId()
-									)
-									.getName();
-
-					bankItems.add(
-							String.format(
-									"{\"slot\":%d,\"name\":\"%s\",\"id\":%d,\"quantity\":%d}",
-									slot,
-									escapeJson(itemName),
-									item.getId(),
-									item.getQuantity()
-							)
-					);
-				}
-			}
-
-			bankJson =
-					bankItems.toString();
-		}
+        String equipmentJson =
+                snapshotItemSerializer.equipment(equipment);
 
 
-		/*
-		 * SEED VAULT JSON
-		 */
-		Item[] cachedSeedVaultItems =
-		        cachedSeedVaultState.getItems();
-
-		String seedVaultJson = "null";
-
-		if (cachedSeedVaultItems != null)
-		{
-			StringJoiner seedVaultItems =
-					new StringJoiner(
-							",",
-							"[",
-							"]"
-					);
-
-			for (
-					int slot = 0;
-					slot < cachedSeedVaultItems.length;
-					slot++
-			)
-			{
-				Item item =
-						cachedSeedVaultItems[slot];
-
-				if (
-						item == null ||
-								item.getId() <= 0
-				)
-				{
-					continue;
-				}
-
-				String itemName =
-						client
-								.getItemDefinition(
-										item.getId()
-								)
-								.getName();
-
-				seedVaultItems.add(
-						String.format(
-								"{\"slot\":%d,\"name\":\"%s\",\"id\":%d,\"quantity\":%d}",
-								slot,
-								escapeJson(itemName),
-								item.getId(),
-								item.getQuantity()
-						)
-				);
-			}
-
-			seedVaultJson =
-					seedVaultItems.toString();
-		}
-
-
-		/*
-		 * INVENTORY JSON
-		 */
-		String inventoryJson = "null";
-
-		if (inventory != null)
-		{
-			StringJoiner inventorySlots =
-					new StringJoiner(
-							",",
-							"[",
-							"]"
-					);
-
-			for (
-					int slot = 0;
-					slot < 28;
-					slot++
-			)
-			{
-				Item item =
-						slot < inventory.size()
-								? inventory.getItem(slot)
-								: null;
-
-				if (item == null)
-				{
-					inventorySlots.add("null");
-				}
-				else
-				{
-					String itemName =
-							client
-									.getItemDefinition(
-											item.getId()
-									)
-									.getName();
-
-					inventorySlots.add(
-							String.format(
-									"{\"slot\":%d,\"name\":\"%s\",\"id\":%d,\"quantity\":%d}",
-									slot,
-									escapeJson(itemName),
-									item.getId(),
-									item.getQuantity()
-							)
-					);
-				}
-			}
-
-			inventoryJson =
-					inventorySlots.toString();
-		}
-
-
-		/*
-		 * EQUIPMENT JSON
-		 */
-		String equipmentJson = "null";
-
-		if (equipment != null)
-		{
-			String head =
-					getEquipmentItemJson(
-							equipment,
-							EquipmentInventorySlot.HEAD
-					);
-
-			String cape =
-					getEquipmentItemJson(
-							equipment,
-							EquipmentInventorySlot.CAPE
-					);
-
-			String amulet =
-					getEquipmentItemJson(
-							equipment,
-							EquipmentInventorySlot.AMULET
-					);
-
-			String weapon =
-					getEquipmentItemJson(
-							equipment,
-							EquipmentInventorySlot.WEAPON
-					);
-
-			String body =
-					getEquipmentItemJson(
-							equipment,
-							EquipmentInventorySlot.BODY
-					);
-
-			String shield =
-					getEquipmentItemJson(
-							equipment,
-							EquipmentInventorySlot.SHIELD
-					);
-
-			String legs =
-					getEquipmentItemJson(
-							equipment,
-							EquipmentInventorySlot.LEGS
-					);
-
-			String gloves =
-					getEquipmentItemJson(
-							equipment,
-							EquipmentInventorySlot.GLOVES
-					);
-
-			String boots =
-					getEquipmentItemJson(
-							equipment,
-							EquipmentInventorySlot.BOOTS
-					);
-
-			String ring =
-					getEquipmentItemJson(
-							equipment,
-							EquipmentInventorySlot.RING
-					);
-
-			String ammo =
-					getEquipmentItemJson(
-							equipment,
-							EquipmentInventorySlot.AMMO
-					);
-
-			equipmentJson =
-					String.format(
-							"{\"head\":%s,\"cape\":%s,\"amulet\":%s,\"weapon\":%s,\"body\":%s,\"shield\":%s,\"legs\":%s,\"gloves\":%s,\"boots\":%s,\"ring\":%s,\"ammo\":%s}",
-							head,
-							cape,
-							amulet,
-							weapon,
-							body,
-							shield,
-							legs,
-							gloves,
-							boots,
-							ring,
-							ammo
-					);
-		}
 
 
 		String clientTime =
@@ -3202,21 +2757,21 @@ public class OraclePlugin extends Plugin
 				PersistentStorageEvidence.collectLiveItemState(client);
 
 		String gimStorageJson =
-				observedItemContainerPayload(cachedGimStorageState);
+				snapshotItemSerializer.observedItemContainer(cachedGimStorageState);
 
 		String coxPrivateStorageJson =
-				observedItemContainerPayload(cachedCoxPrivateStorageState);
+				snapshotItemSerializer.observedItemContainer(cachedCoxPrivateStorageState);
 
 		String coxSharedStorageJson =
-				observedItemContainerPayload(cachedCoxSharedStorageState);
+				snapshotItemSerializer.observedItemContainer(cachedCoxSharedStorageState);
           String gravestoneStorageJson =
-                          observedItemContainerPayload(cachedGravestoneStorageState);
+                          snapshotItemSerializer.observedItemContainer(cachedGravestoneStorageState);
           String deathsOfficeStorageJson =
-                          observedItemContainerPayload(cachedDeathsOfficeStorageState);
+                          snapshotItemSerializer.observedItemContainer(cachedDeathsOfficeStorageState);
           String potionStorageJson =
-                          observedPotionStoragePayload(cachedPotionStorageState);
+                          snapshotItemSerializer.potionStorage(cachedPotionStorageState);
           String motherlodeSackJson =
-                          observedMotherlodeSackPayload(cachedMotherlodeSackState);
+                          snapshotItemSerializer.motherlodeSack(cachedMotherlodeSackState);
 
 		String plankSackJson =
 				cachedPlankSackState.toJson();
@@ -3243,811 +2798,112 @@ public class OraclePlugin extends Plugin
 
 
 		String lootingBagJson =
-				observedItemContainerPayload(cachedLootingBagState);
+				snapshotItemSerializer.observedItemContainer(cachedLootingBagState);
 
 		String seedBoxJson =
-				observedItemContainerPayload(cachedSeedBoxState);
+				snapshotItemSerializer.observedItemContainer(cachedSeedBoxState);
 
 		String tackleBoxJson =
-				observedItemContainerPayload(cachedTackleBoxState);
+				snapshotItemSerializer.observedItemContainer(cachedTackleBoxState);
 
 		String forestryKitJson =
-				observedItemContainerPayload(cachedForestryKitState);
+				snapshotItemSerializer.observedItemContainer(cachedForestryKitState);
 
 		String huntsmansKitJson =
-				observedItemContainerPayload(cachedHuntsmansKitState);
+				snapshotItemSerializer.observedItemContainer(cachedHuntsmansKitState);
 
 		String barbarianKnapsackJson =
-				observedItemContainerPayload(cachedBarbarianKnapsackState);
+				snapshotItemSerializer.observedItemContainer(cachedBarbarianKnapsackState);
 
 		String dizanasQuiverAmmoJson =
-				observedQuiverAmmoPayload(
+				snapshotItemSerializer.quiverAmmo(
 				        cachedDizanasQuiverAmmoState
 				);
 
 		String stashUnitsJson =
 		        cachedStashState.toJson();
 
-		int accountTypeCode =
-				client.getVarbitValue(
-						Varbits.ACCOUNT_TYPE
-				);
-
-		String accountTypeJson =
-				accountTypeCode >= 0 &&
-						accountTypeCode < ACCOUNT_TYPE_NAMES.length
-						? "\"" + ACCOUNT_TYPE_NAMES[accountTypeCode] + "\""
-						: "null";
-
-		int membershipDays =
-				client.getVarpValue(
-						VarPlayerID.ACCOUNT_CREDIT
-				);
-
-		String membershipActiveJson =
-				membershipDays >= 0
-						? Boolean.toString(membershipDays > 0)
-						: "null";
-
-		String membershipDaysJson =
-				membershipDays >= 0
-						? Integer.toString(membershipDays)
-						: "null";
-
-
-		/*
-		 * COMBAT ACHIEVEMENT TIER COUNTS
-		 */
-		int caEasy =
-				client.getVarbitValue(
-						Varbits.COMBAT_TASK_EASY
-				);
-
-		int caMedium =
-				client.getVarbitValue(
-						Varbits.COMBAT_TASK_MEDIUM
-				);
-
-		int caHard =
-				client.getVarbitValue(
-						Varbits.COMBAT_TASK_HARD
-				);
-
-		int caElite =
-				client.getVarbitValue(
-						Varbits.COMBAT_TASK_ELITE
-				);
-
-		int caMaster =
-				client.getVarbitValue(
-						Varbits.COMBAT_TASK_MASTER
-				);
-
-		int caGrandmaster =
-				client.getVarbitValue(
-						Varbits.COMBAT_TASK_GRANDMASTER
-				);
-
-
-		/*
-		 * ACHIEVEMENT DIARY TIER COMPLETION
-		 *
-		 * Karamja intentionally uses == 2.
-		 */
-		String diaryJson =
-				String.format(
-						"{\"ardougne\":{\"easy\":%b,\"medium\":%b,\"hard\":%b,\"elite\":%b}," +
-								"\"desert\":{\"easy\":%b,\"medium\":%b,\"hard\":%b,\"elite\":%b}," +
-								"\"falador\":{\"easy\":%b,\"medium\":%b,\"hard\":%b,\"elite\":%b}," +
-								"\"fremennik\":{\"easy\":%b,\"medium\":%b,\"hard\":%b,\"elite\":%b}," +
-								"\"kandarin\":{\"easy\":%b,\"medium\":%b,\"hard\":%b,\"elite\":%b}," +
-								"\"karamja\":{\"easy\":%b,\"medium\":%b,\"hard\":%b,\"elite\":%b}," +
-								"\"kourend\":{\"easy\":%b,\"medium\":%b,\"hard\":%b,\"elite\":%b}," +
-								"\"lumbridge\":{\"easy\":%b,\"medium\":%b,\"hard\":%b,\"elite\":%b}," +
-								"\"morytania\":{\"easy\":%b,\"medium\":%b,\"hard\":%b,\"elite\":%b}," +
-								"\"varrock\":{\"easy\":%b,\"medium\":%b,\"hard\":%b,\"elite\":%b}," +
-								"\"western\":{\"easy\":%b,\"medium\":%b,\"hard\":%b,\"elite\":%b}," +
-								"\"wilderness\":{\"easy\":%b,\"medium\":%b,\"hard\":%b,\"elite\":%b}}",
-
-						client.getVarbitValue(
-								Varbits.DIARY_ARDOUGNE_EASY
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_ARDOUGNE_MEDIUM
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_ARDOUGNE_HARD
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_ARDOUGNE_ELITE
-						) == 1,
-
-
-						client.getVarbitValue(
-								Varbits.DIARY_DESERT_EASY
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_DESERT_MEDIUM
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_DESERT_HARD
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_DESERT_ELITE
-						) == 1,
-
-
-						client.getVarbitValue(
-								Varbits.DIARY_FALADOR_EASY
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_FALADOR_MEDIUM
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_FALADOR_HARD
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_FALADOR_ELITE
-						) == 1,
-
-
-						client.getVarbitValue(
-								Varbits.DIARY_FREMENNIK_EASY
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_FREMENNIK_MEDIUM
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_FREMENNIK_HARD
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_FREMENNIK_ELITE
-						) == 1,
-
-
-						client.getVarbitValue(
-								Varbits.DIARY_KANDARIN_EASY
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_KANDARIN_MEDIUM
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_KANDARIN_HARD
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_KANDARIN_ELITE
-						) == 1,
-
-
-						client.getVarbitValue(
-								Varbits.DIARY_KARAMJA_EASY
-						) == 2,
-
-						client.getVarbitValue(
-								Varbits.DIARY_KARAMJA_MEDIUM
-						) == 2,
-
-						client.getVarbitValue(
-								Varbits.DIARY_KARAMJA_HARD
-						) == 2,
-
-						client.getVarbitValue(
-								Varbits.DIARY_KARAMJA_ELITE
-						) == 2,
-
-
-						client.getVarbitValue(
-								Varbits.DIARY_KOUREND_EASY
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_KOUREND_MEDIUM
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_KOUREND_HARD
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_KOUREND_ELITE
-						) == 1,
-
-
-						client.getVarbitValue(
-								Varbits.DIARY_LUMBRIDGE_EASY
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_LUMBRIDGE_MEDIUM
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_LUMBRIDGE_HARD
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_LUMBRIDGE_ELITE
-						) == 1,
-
-
-						client.getVarbitValue(
-								Varbits.DIARY_MORYTANIA_EASY
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_MORYTANIA_MEDIUM
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_MORYTANIA_HARD
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_MORYTANIA_ELITE
-						) == 1,
-
-
-						client.getVarbitValue(
-								Varbits.DIARY_VARROCK_EASY
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_VARROCK_MEDIUM
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_VARROCK_HARD
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_VARROCK_ELITE
-						) == 1,
-
-
-						client.getVarbitValue(
-								Varbits.DIARY_WESTERN_EASY
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_WESTERN_MEDIUM
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_WESTERN_HARD
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_WESTERN_ELITE
-						) == 1,
-
-
-						client.getVarbitValue(
-								Varbits.DIARY_WILDERNESS_EASY
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_WILDERNESS_MEDIUM
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_WILDERNESS_HARD
-						) == 1,
-
-						client.getVarbitValue(
-								Varbits.DIARY_WILDERNESS_ELITE
-						) == 1
-				);
-
-
-		/*
-		 * COMBAT ACHIEVEMENT COMPLETION IDS
-		 */
-		StringJoiner caCompletedIds =
-				new StringJoiner(
-						",",
-						"[",
-						"]"
-				);
-
-		for (
-				int taskId = 0;
-				taskId < CA_TASK_COMPLETION_VARPS.length * 32;
-				taskId++
-		)
-		{
-			if (
-					isCombatAchievementComplete(
-							taskId
-					)
-			)
-			{
-				caCompletedIds.add(
-						String.valueOf(
-								taskId
-						)
-				);
-			}
-		}
-
-
-		/*
-		 * SLAYER
-		 */
-		int slayerRemaining =
-				client.getVarpValue(
-						VarPlayerID.SLAYER_COUNT
-				);
-
-		int slayerTaskId =
-				client.getVarpValue(
-						VarPlayerID.SLAYER_TARGET
-				);
-
-		String slayerTask = "";
-
-		try
-		{
-			var taskRows =
-					client.getDBRowsByValue(
-							DBTableID.SlayerTask.ID,
-							DBTableID.SlayerTask.COL_ID,
-							0,
-							slayerTaskId
-					);
-
-			if (
-					taskRows != null &&
-							!taskRows.isEmpty()
-			)
-			{
-				int taskDBRow =
-						taskRows.get(0);
-
-				Object[] taskFields =
-						client.getDBTableField(
-								taskDBRow,
-								DBTableID.SlayerTask.COL_NAME_UPPERCASE,
-								0
-						);
-
-				if (
-						taskFields != null &&
-								taskFields.length > 0 &&
-								taskFields[0] != null
-				)
-				{
-					slayerTask =
-							String.valueOf(
-									taskFields[0]
-							);
-				}
-			}
-		}
-		catch (Exception e)
-		{
-			log.debug(
-					"Unable to resolve Slayer task name",
-					e
-			);
-		}
-
-
-		/*
-		 * SKILLS
-		 */
-		StringJoiner skillsJson =
-				new StringJoiner(
-						",",
-						"{",
-						"}"
-				);
-
-		for (
-				Skill skill :
-				Skill.values()
-		)
-		{
-			if (skill == Skill.OVERALL)
-			{
-				continue;
-			}
-
-			int level =
-					client.getRealSkillLevel(
-							skill
-					);
-
-			int xp =
-					client.getSkillExperience(
-							skill
-					);
-
-			skillsJson.add(
-					String.format(
-							"\"%s\":{\"level\":%d,\"xp\":%d}",
-							escapeJson(
-									skill.getName()
-							),
-							level,
-							xp
-					)
-			);
-		}
-
-
-		/*
-		 * QUESTS
-		 */
-		StringJoiner questsJson =
-				new StringJoiner(
-						",",
-						"{",
-						"}"
-				);
-
-		for (
-				Quest quest :
-				Quest.values()
-		)
-		{
-			questsJson.add(
-					String.format(
-							"\"%s\":\"%s\"",
-							escapeJson(
-									quest.getName()
-							),
-							escapeJson(
-									quest
-											.getState(client)
-											.name()
-							)
-					)
-			);
-		}
-
-
-		/*
-		 * COLLECTION LOG JSON
-		 *
-		 * Pages are captured only when viewed in the Collection Log.
-		 * This reads only the direct children exposed by the log interface.
-		 */
-		StringJoiner collectionPagesJson =
-				new StringJoiner(
-						",",
-						"{",
-						"}"
-				);
-
-		for (
-				Map.Entry<String, String> entry :
-				cachedCollectionLogPages.entrySet()
-		)
-		{
-			collectionPagesJson.add(
-					String.format(
-							"\"%s\":%s",
-							escapeJson(
-									entry.getKey()
-							),
-							entry.getValue()
-					)
-			);
-		}
-
-		String collectionLogJson =
-				String.format(
-						"{\"pages\":%s}",
-						collectionPagesJson.toString()
-				);
-
-
-		/*
-		 * INSTANT COLLECTION LOG TRANSMIT JSON
-		 *
-		 * This is intentionally compact: only obtained item IDs and
-		 * quantities are transmitted by the game. The Worker uses the
-		 * existing full Collection Log page/item definition as a template
-		 * and marks every absent ID as unobtained.
-		 */
-		String instantCollectionLogJson = "null";
-
-		if (collectionInstantCapturedAt != null)
-		{
-			StringJoiner instantItemsJson =
-					new StringJoiner(
-							",",
-							"[",
-							"]"
-					);
-
-			for (
-					Map.Entry<Integer, Integer> entry :
-					instantCollectionLogItems.entrySet()
-			)
-			{
-				instantItemsJson.add(
-						String.format(
-								"{\"id\":%d,\"quantity\":%d}",
-								entry.getKey(),
-								entry.getValue()
-						)
-				);
-			}
-
-			instantCollectionLogJson =
-					String.format(
-							"{\"capturedAt\":\"%s\",\"items\":%s}",
-							escapeJson(
-									collectionInstantCapturedAt
-							),
-							instantItemsJson.toString()
-					);
-		}
-
-
-		/*
-		 * FINAL SNAPSHOT JSON
-		 */
-		String json =
-				String.format(
-						"{\"account\":\"%s\"," +
-								"\"accountType\":%s," +
-								"\"membershipActive\":%s," +
-								"\"membershipDaysRemaining\":%s," +
-								"\"clientTime\":\"%s\"," +
-								"\"snapshotReason\":\"%s\"," +
-								"\"evidence\":%s," +
-								"\"slayerTask\":\"%s\"," +
-								"\"slayerRemaining\":%d," +
-								"\"combatAchievements\":{" +
-								"\"easy\":%d," +
-								"\"medium\":%d," +
-								"\"hard\":%d," +
-								"\"elite\":%d," +
-								"\"master\":%d," +
-								"\"grandmaster\":%d," +
-								"\"completedTaskIds\":%s}," +
-								"\"achievementDiaries\":%s," +
-								"\"achievementDiaryTaskState\":%s," +
-								"\"globalResourceCapabilityState\":%s," +
-								"\"persistentStorageLiveItemState\":%s," +
-								"\"collectionLog\":%s," +
-								"\"collectionLogInstant\":%s," +
-								"\"skills\":%s," +
-								"\"quests\":%s," +
-								"\"inventory\":%s," +
-								"\"bank\":%s," +
-								"\"seedVault\":%s," +
-								"\"gimStorage\":%s," +
-								"\"coxPrivateStorage\":%s," +
-								"\"coxSharedStorage\":%s," +
-								"\"gravestoneStorage\":%s," +
-								"\"deathsOfficeStorage\":%s," +
-								"\"potionStorage\":%s," +
-								"\"motherlodeSack\":%s," +
-								"\"plankSack\":%s," +
-                                                          "\"herbSack\":%s," +
-                                                          "\"gemBag\":%s," +
-                                                          "\"gemSatchel\":%s," +
-                                                          "\"coalBag\":%s," +
-                                                          "\"fishBarrel\":%s," +
-                                                          "\"logBasket\":%s," +
-								"\"lootingBag\":%s," +
-								"\"seedBox\":%s," +
-								"\"tackleBox\":%s," +
-								"\"forestryKit\":%s," +
-								"\"huntsmansKit\":%s," +
-								"\"barbarianKnapsack\":%s," +
-								"\"dizanasQuiverAmmo\":%s," +
-                                                          "\"stashUnits\":%s," +
-								"\"equipment\":%s}",
-
-						escapeJson(account),
-						accountTypeJson,
-						membershipActiveJson,
-						membershipDaysJson,
-						escapeJson(clientTime),
-						escapeJson(snapshotReason),
-						evidenceJson,
-						escapeJson(slayerTask),
-						slayerRemaining,
-
-						caEasy,
-						caMedium,
-						caHard,
-						caElite,
-						caMaster,
-						caGrandmaster,
-						caCompletedIds.toString(),
-
-						diaryJson,
-						diaryTaskStateJson,
-						globalResourceCapabilityStateJson,
-						persistentStorageLiveItemStateJson,
-						collectionLogJson,
-						instantCollectionLogJson,
-
-						skillsJson.toString(),
-						questsJson.toString(),
-
-						inventoryJson,
-						bankJson,
-						seedVaultJson,
-						gimStorageJson,
-						coxPrivateStorageJson,
-						coxSharedStorageJson,
-						gravestoneStorageJson,
-						deathsOfficeStorageJson,
-						potionStorageJson,
-						motherlodeSackJson,
-						plankSackJson,
-                                          herbSackJson,
-                                          gemBagJson,
-                                          gemSatchelJson,
-                                          coalBagJson,
-                                          fishBarrelJson,
-                                          logBasketJson,
-						lootingBagJson,
-						seedBoxJson,
-						tackleBoxJson,
-						forestryKitJson,
-						huntsmansKitJson,
-						barbarianKnapsackJson,
-						dizanasQuiverAmmoJson,
-						stashUnitsJson,
-						equipmentJson
-				);
-
-
-		log.info(
-				"Sending JSON: {}",
-				json
-		);
-
-
-		/*
-		 * SEND TO CLOUDFLARE
-		 */
-		try
-		{
-			HttpRequest request =
-					HttpRequest.newBuilder()
-							.uri(
-									URI.create(
-											config.backendUrl() +
-													"/update"
-									)
-							)
-							.header(
-									"Authorization",
-									"Bearer " +
-											config.writeToken()
-							)
-							.header(
-									"Content-Type",
-									"application/json"
-							)
-							.POST(
-									HttpRequest
-											.BodyPublishers
-											.ofString(json)
-							)
-							.build();
-
-
-			httpClient
-					.sendAsync(
-							request,
-							HttpResponse
-									.BodyHandlers
-									.ofString()
-					)
-					.thenAccept(
-							response ->
-									log.info(
-											"Upload response: {} {}",
-											response.statusCode(),
-											response.body()
-									)
-					)
-					.exceptionally(
-							error ->
-							{
-								log.error(
-										"Upload failed",
-										error
-								);
-
-								return null;
-							}
-					);
-		}
-		catch (Exception e)
-		{
-			log.error(
-					"Failed to send snapshot",
-					e
-			);
-		}
-	}
-
-
-    private boolean isCombatAchievementComplete(
-            int taskId
-    )
-    {
-        if (taskId < 0)
+		SnapshotLiveStateCollector.State liveState =
+                snapshotLiveStateCollector.collect();
+
+                String collectionLogJson =
+                snapshotCollectionLogSerializer.pages(
+                        cachedCollectionLogPages
+                );
+
+        String instantCollectionLogJson =
+                snapshotCollectionLogSerializer.instant(
+                        collectionInstantCapturedAt,
+                        instantCollectionLogItems
+                );
+
+        SnapshotEnvelopeSerializer.Parts envelopeParts =
+                new SnapshotEnvelopeSerializer.Parts();
+
+        envelopeParts.account = account;
+        envelopeParts.clientTime = clientTime;
+        envelopeParts.snapshotReason = snapshotReason;
+        envelopeParts.evidenceJson = evidenceJson;
+        envelopeParts.liveState = liveState;
+        envelopeParts.diaryTaskStateJson = diaryTaskStateJson;
+        envelopeParts.globalResourceCapabilityStateJson =
+                globalResourceCapabilityStateJson;
+        envelopeParts.persistentStorageLiveItemStateJson =
+                persistentStorageLiveItemStateJson;
+        envelopeParts.collectionLogJson = collectionLogJson;
+        envelopeParts.instantCollectionLogJson =
+                instantCollectionLogJson;
+        envelopeParts.inventoryJson = inventoryJson;
+        envelopeParts.bankJson = bankJson;
+        envelopeParts.seedVaultJson = seedVaultJson;
+        envelopeParts.gimStorageJson = gimStorageJson;
+        envelopeParts.coxPrivateStorageJson = coxPrivateStorageJson;
+        envelopeParts.coxSharedStorageJson = coxSharedStorageJson;
+        envelopeParts.gravestoneStorageJson = gravestoneStorageJson;
+        envelopeParts.deathsOfficeStorageJson = deathsOfficeStorageJson;
+        envelopeParts.potionStorageJson = potionStorageJson;
+        envelopeParts.motherlodeSackJson = motherlodeSackJson;
+        envelopeParts.plankSackJson = plankSackJson;
+        envelopeParts.herbSackJson = herbSackJson;
+        envelopeParts.gemBagJson = gemBagJson;
+        envelopeParts.gemSatchelJson = gemSatchelJson;
+        envelopeParts.coalBagJson = coalBagJson;
+        envelopeParts.fishBarrelJson = fishBarrelJson;
+        envelopeParts.logBasketJson = logBasketJson;
+        envelopeParts.lootingBagJson = lootingBagJson;
+        envelopeParts.seedBoxJson = seedBoxJson;
+        envelopeParts.tackleBoxJson = tackleBoxJson;
+        envelopeParts.forestryKitJson = forestryKitJson;
+        envelopeParts.huntsmansKitJson = huntsmansKitJson;
+        envelopeParts.barbarianKnapsackJson =
+                barbarianKnapsackJson;
+        envelopeParts.dizanasQuiverAmmoJson =
+                dizanasQuiverAmmoJson;
+        envelopeParts.stashUnitsJson = stashUnitsJson;
+        envelopeParts.equipmentJson = equipmentJson;
+
+        String json =
+                SnapshotEnvelopeSerializer.serialize(
+                        envelopeParts
+                );
+
+if (log.isDebugEnabled())
         {
-            return false;
+            log.debug(
+                    "Outgoing snapshot diagnostic: {}",
+                    SnapshotDiagnostics.summarize(gson, json)
+            );
         }
 
-        int block = taskId / 32;
-
-        if (block >= CA_TASK_COMPLETION_VARPS.length)
-        {
-            return false;
-        }
-
-        int bit = taskId % 32;
-
-        int packed = client.getVarpValue(
-                CA_TASK_COMPLETION_VARPS[block]
+        snapshotTransport.send(
+                config.backendUrl(),
+                config.writeToken(),
+                json,
+                snapshotReason
         );
-
-        return (
-                packed &
-                        (1 << bit)
-        ) != 0;
-    }
-
-private String getEquipmentItemJson(
-			ItemContainer equipment,
-			EquipmentInventorySlot slot
-	)
-	{
-		Item item =
-				equipment.getItem(
-						slot.getSlotIdx()
-				);
-
-
-		if (item == null)
-		{
-			return "null";
-		}
-
-
-		String itemName =
-				client
-						.getItemDefinition(
-								item.getId()
-						)
-						.getName();
-
-
-		return String.format(
-				"{\"name\":\"%s\",\"id\":%d,\"quantity\":%d}",
-				escapeJson(itemName),
-				item.getId(),
-				item.getQuantity()
-		);
 	}
+
+
 
 
 	private String stripTags(
