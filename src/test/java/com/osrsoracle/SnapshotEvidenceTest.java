@@ -39,7 +39,7 @@ public class SnapshotEvidenceTest
                 );
 
         assertTrue(json.contains("\"source\":\"RUNELITE_CLIENT\""));
-        assertTrue(json.contains("\"schema\":1"));
+        assertTrue(json.contains("\"schema\":2"));
         assertTrue(json.contains("\"sessionId\":\"session-1\""));
         assertTrue(json.contains("\"sequence\":7"));
         assertTrue(json.contains(

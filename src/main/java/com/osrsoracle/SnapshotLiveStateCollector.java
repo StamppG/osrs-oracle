@@ -16,6 +16,7 @@ final class SnapshotLiveStateCollector
 static final class State
 {
 final String accountTypeJson;
+final AccountTypeResolution accountTypeResolution;
 final String membershipActiveJson;
 final String membershipDaysJson;
 final int caEasy;
@@ -33,6 +34,7 @@ final String questsJson;
 
 State(
 String accountTypeJson,
+AccountTypeResolution accountTypeResolution,
 String membershipActiveJson,
 String membershipDaysJson,
 int caEasy,
@@ -50,6 +52,7 @@ String questsJson
 )
 {
 this.accountTypeJson = accountTypeJson;
+this.accountTypeResolution = accountTypeResolution;
 this.membershipActiveJson = membershipActiveJson;
 this.membershipDaysJson = membershipDaysJson;
 this.caEasy = caEasy;
@@ -109,7 +112,7 @@ SnapshotLiveStateCollector(Client client)
 this.client = client;
 }
 
-State collect()
+State collect(String observedAt)
 {
 int accountTypeCode =
 				client.getVarbitValue(
@@ -122,6 +125,20 @@ int accountTypeCode =
 						? "\"" + ACCOUNT_TYPE_NAMES[accountTypeCode] + "\""
 						: "null";
 
+		Integer regionId =
+				client.getLocalPlayer() == null
+						? null
+						: client
+								.getLocalPlayer()
+								.getWorldLocation()
+								.getRegionID();
+
+		AccountTypeResolution accountTypeResolution =
+				AccountTypeResolution.resolve(
+						accountTypeCode,
+						regionId,
+						observedAt
+				);
 		int membershipDays =
 				client.getVarpValue(
 						VarPlayerID.ACCOUNT_CREDIT
@@ -568,6 +585,7 @@ int accountTypeCode =
 
 return new State(
 accountTypeJson,
+accountTypeResolution,
 membershipActiveJson,
 membershipDaysJson,
 caEasy,

@@ -21,6 +21,8 @@ import net.runelite.api.MenuAction;
 import net.runelite.api.SpriteID;
 import net.runelite.api.FontID;
 
+import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.events.ActorDeath;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.MenuOptionClicked;
@@ -45,6 +47,7 @@ import net.runelite.api.widgets.WidgetTextAlignment;
 import net.runelite.api.widgets.JavaScriptCallback;
 
 
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
@@ -54,6 +57,7 @@ import net.runelite.client.plugins.cluescrolls.clues.emote.STASHUnit;
 
 
 import java.time.Instant;
+import java.util.UUID;
 
 import java.util.Map;
 import java.util.LinkedHashMap;
@@ -71,6 +75,9 @@ public class OraclePlugin extends Plugin
 {
 	@Inject
 	private Client client;
+
+    @Inject
+    private ClientThread clientThread;
 
 
 	@Inject
@@ -90,6 +97,10 @@ public class OraclePlugin extends Plugin
 
     @Inject
     private SnapshotCollectionLogSerializer snapshotCollectionLogSerializer;
+
+    private Slice5PersistenceCoordinator slice5PersistenceCoordinator;
+    private boolean slice5PersistenceReadySnapshotRequested = false;
+    private boolean slice5PersistenceFailureLogged = false;
 
     private static final long MIN_UPLOAD_INTERVAL_MS = 1000L;
     private static final int ENTRY_SNAPSHOT_SETTLE_TICKS = 3;
@@ -114,6 +125,13 @@ public class OraclePlugin extends Plugin
 	private final EntryObservationSettleGuard entryObservationSettleGuard = new EntryObservationSettleGuard();
 	private String clientSessionId = null;
 	private long snapshotSequence = 0;
+    private long slice5EventSequence = 0;
+    private int lastSlice5LocalDeathTick = Integer.MIN_VALUE;
+    private String lastSlice5LocalDeathAccount = null;
+    private final Slice5HardcoreTransitionTracker
+            slice5HardcoreTransitionTracker =
+                    new Slice5HardcoreTransitionTracker();
+
 	private final ObservedItemContainerState cachedBankState =
 		new ObservedItemContainerState(
 			"bank",
@@ -331,6 +349,16 @@ public class OraclePlugin extends Plugin
 	{
 		clientSessionId = SnapshotEvidence.newSessionId();
 		snapshotSequence = 0;
+          slice5EventSequence = 0;
+          lastSlice5LocalDeathTick = Integer.MIN_VALUE;
+          lastSlice5LocalDeathAccount = null;
+          slice5HardcoreTransitionTracker.clear();
+
+          slice5PersistenceReadySnapshotRequested = false;
+          slice5PersistenceFailureLogged = false;
+          slice5PersistenceCoordinator =
+                  new Slice5PersistenceCoordinator();
+          slice5PersistenceCoordinator.start();
 		snapshotScheduler.clear();
 		entryObservationSettleGuard.reset();
 		lootingBagWidgetWasVisible = false;
@@ -375,9 +403,383 @@ public class OraclePlugin extends Plugin
 	@Override
 	protected void shutDown() throws Exception
 	{
+          Slice5PersistenceCoordinator coordinator =
+                  slice5PersistenceCoordinator;
+
+          slice5PersistenceCoordinator = null;
+
+          if (coordinator != null)
+          {
+                  coordinator.shutDown();
+          }
+
 		log.debug("Oracle stopped!");
 	}
 
+
+    @Subscribe
+    public void onActorDeath(ActorDeath event)
+    {
+        if (
+                !Slice5DeathObservationGate.isLocalActor(
+                        event.getActor(),
+                        client.getLocalPlayer()
+                )
+        )
+        {
+            return;
+        }
+
+        if (client.getLocalPlayer() == null)
+        {
+            return;
+        }
+
+        String account =
+                client.getLocalPlayer().getName();
+
+        if (
+                account == null ||
+                        account.isBlank()
+        )
+        {
+            return;
+        }
+
+        int deathTick =
+                client.getTickCount();
+
+        if (
+                Slice5DeathObservationGate.isDuplicate(
+                        lastSlice5LocalDeathAccount,
+                        lastSlice5LocalDeathTick,
+                        account,
+                        deathTick
+                )
+        )
+        {
+            return;
+        }
+
+        Slice5PersistenceCoordinator coordinator =
+                slice5PersistenceCoordinator;
+
+        if (coordinator == null)
+        {
+            return;
+        }
+
+        String observedAt =
+                Instant.now().toString();
+
+        WorldPoint location =
+                client
+                        .getLocalPlayer()
+                        .getWorldLocation();
+
+        int rawAccountType =
+                client.getVarbitValue(
+                        Varbits.ACCOUNT_TYPE
+                );
+
+        AccountTypeResolution accountMode =
+                AccountTypeResolution.resolve(
+                        rawAccountType,
+                        location.getRegionID(),
+                        observedAt
+                );
+
+        ItemContainer inventory =
+                client.getItemContainer(
+                        InventoryID.INV
+                );
+
+        ItemContainer equipment =
+                client.getItemContainer(
+                        InventoryID.WORN
+                );
+
+        String inventoryJson =
+                snapshotItemSerializer.inventory(
+                        inventory
+                );
+
+        String equipmentJson =
+                snapshotItemSerializer.equipment(
+                        equipment
+                );
+
+        SnapshotLiveStateCollector.State liveState =
+                snapshotLiveStateCollector.collect(
+                        observedAt
+                );
+
+        String officialAccountType =
+                accountMode.getOfficialAccountType();
+
+        boolean terminalCapable =
+                "HARDCORE_IRONMAN".equals(
+                        officialAccountType
+                ) ||
+                        "HARDCORE_GROUP_IRONMAN".equals(
+                                officialAccountType
+                        );
+
+        String finalLivingStateCandidateJson =
+                terminalCapable
+                        ? buildSlice5FinalLivingStateCandidate(
+                                observedAt,
+                                liveState
+                        )
+                        : null;
+
+        String eventId =
+                UUID.randomUUID().toString();
+
+        String eventJson =
+                Slice5CharacterDeathEvent.serialize(
+                        eventId,
+                        observedAt,
+                        clientSessionId,
+                        ++slice5EventSequence,
+                        client.getWorld(),
+                        location.getX(),
+                        location.getY(),
+                        location.getPlane(),
+                        accountMode,
+                        inventoryJson,
+                        inventory != null,
+                        equipmentJson,
+                        equipment != null,
+                        finalLivingStateCandidateJson
+                );
+
+        lastSlice5LocalDeathTick =
+                deathTick;
+
+        lastSlice5LocalDeathAccount =
+                account;
+
+        if (
+                "HARDCORE_IRONMAN".equals(
+                        officialAccountType
+                )
+        )
+        {
+            slice5HardcoreTransitionTracker.armDeath(
+                    account,
+                    eventId,
+                    deathTick
+            );
+        }
+        else
+        {
+            slice5HardcoreTransitionTracker.clear();
+        }
+
+        coordinator.captureEvent(
+                account,
+                eventId,
+                "CHARACTER_DEATH",
+                observedAt,
+                eventJson
+        ).whenComplete(
+                (result, error) ->
+                {
+                    if (error != null)
+                    {
+                        log.warn(
+                                "Failed to persist Slice 5 death event",
+                                error
+                        );
+                        return;
+                    }
+
+                    clientThread.invoke(
+                            () ->
+                            {
+                                if (
+                                        slice5PersistenceCoordinator ==
+                                                coordinator
+                                )
+                                {
+                                    requestSnapshot(
+                                            "CHARACTER_DEATH"
+                                    );
+                                }
+                            }
+                    );
+                }
+        );
+    }
+
+    private String buildSlice5FinalLivingStateCandidate(
+            String observedAt,
+            SnapshotLiveStateCollector.State liveState
+    )
+    {
+        SnapshotEnvelopeSerializer.Parts parts =
+                new SnapshotEnvelopeSerializer.Parts();
+
+        parts.liveState =
+                liveState;
+
+        parts.diaryTaskStateJson =
+                AchievementDiaryState.collect(client);
+
+        parts.globalResourceCapabilityStateJson =
+                GlobalResourceCapabilityState.collect(client);
+
+        parts.persistentStorageLiveItemStateJson =
+                PersistentStorageEvidence.collectLiveItemState(
+                        client
+                );
+
+        parts.collectionLogJson =
+                snapshotCollectionLogSerializer.pages(
+                        cachedCollectionLogPages
+                );
+
+        parts.bankJson =
+                snapshotItemSerializer.bank(
+                        cachedBankState
+                );
+
+        parts.seedVaultJson =
+                snapshotItemSerializer.seedVault(
+                        cachedSeedVaultState
+                );
+
+        parts.gimStorageJson =
+                snapshotItemSerializer.observedItemContainer(
+                        cachedGimStorageState
+                );
+
+        parts.coxPrivateStorageJson =
+                snapshotItemSerializer.observedItemContainer(
+                        cachedCoxPrivateStorageState
+                );
+
+        parts.coxSharedStorageJson =
+                snapshotItemSerializer.observedItemContainer(
+                        cachedCoxSharedStorageState
+                );
+
+        parts.gravestoneStorageJson =
+                snapshotItemSerializer.observedItemContainer(
+                        cachedGravestoneStorageState
+                );
+
+        parts.deathsOfficeStorageJson =
+                snapshotItemSerializer.observedItemContainer(
+                        cachedDeathsOfficeStorageState
+                );
+
+        parts.potionStorageJson =
+                snapshotItemSerializer.potionStorage(
+                        cachedPotionStorageState
+                );
+
+        parts.motherlodeSackJson =
+                snapshotItemSerializer.motherlodeSack(
+                        cachedMotherlodeSackState
+                );
+
+        parts.plankSackJson =
+                cachedPlankSackState.toJson();
+
+        parts.herbSackJson =
+                cachedHerbSackState.toJson();
+
+        parts.gemBagJson =
+                cachedGemBagState.toJson();
+
+        parts.gemSatchelJson =
+                cachedGemSatchelState.toJson();
+
+        parts.coalBagJson =
+                cachedCoalBagState.toJson();
+
+        parts.fishBarrelJson =
+                cachedFishBarrelState.toJson();
+
+        parts.logBasketJson =
+                cachedLogBasketState.toJson();
+
+        parts.lootingBagJson =
+                snapshotItemSerializer.observedItemContainer(
+                        cachedLootingBagState
+                );
+
+        parts.seedBoxJson =
+                snapshotItemSerializer.observedItemContainer(
+                        cachedSeedBoxState
+                );
+
+        parts.tackleBoxJson =
+                snapshotItemSerializer.observedItemContainer(
+                        cachedTackleBoxState
+                );
+
+        parts.forestryKitJson =
+                snapshotItemSerializer.observedItemContainer(
+                        cachedForestryKitState
+                );
+
+        parts.huntsmansKitJson =
+                snapshotItemSerializer.observedItemContainer(
+                        cachedHuntsmansKitState
+                );
+
+        parts.barbarianKnapsackJson =
+                snapshotItemSerializer.observedItemContainer(
+                        cachedBarbarianKnapsackState
+                );
+
+        parts.dizanasQuiverAmmoJson =
+                snapshotItemSerializer.quiverAmmo(
+                        cachedDizanasQuiverAmmoState
+                );
+
+        parts.stashUnitsJson =
+                cachedStashState.toJson();
+
+        String residualCoverageJson =
+                Slice5FinalLivingCoverage.serialize(
+                        observedAt,
+                        cachedBankState.getObservedAt(),
+                        cachedSeedVaultState.getObservedAt(),
+                        cachedGimStorageState.getObservedAt(),
+                        cachedCoxPrivateStorageState.getObservedAt(),
+                        cachedCoxSharedStorageState.getObservedAt(),
+                        cachedGravestoneStorageState.getObservedAt(),
+                        cachedDeathsOfficeStorageState.getObservedAt(),
+                        cachedPotionStorageState.getObservedAt(),
+                        cachedMotherlodeSackState.getObservedAt(),
+                        cachedPlankSackState.getObservedAt(),
+                        cachedHerbSackState.getObservedAt(),
+                        cachedGemBagState.getObservedAt(),
+                        cachedGemSatchelState.getObservedAt(),
+                        cachedCoalBagState.getObservedAt(),
+                        cachedFishBarrelState.getObservedAt(),
+                        cachedLogBasketState.getObservedAt(),
+                        cachedLootingBagState.getObservedAt(),
+                        cachedSeedBoxState.getObservedAt(),
+                        cachedTackleBoxState.getObservedAt(),
+                        cachedForestryKitState.getObservedAt(),
+                        cachedHuntsmansKitState.getObservedAt(),
+                        cachedBarbarianKnapsackState.getObservedAt(),
+                        cachedDizanasQuiverAmmoState.getObservedAt(),
+                        cachedStashState.getObservedAt(),
+                        cachedCollectionLogCapturedAt,
+                        cachedCollectionLogPages.size()
+                );
+
+        return Slice5FinalLivingStateCandidate.serialize(
+                parts,
+                residualCoverageJson
+        );
+    }
 
 	@Subscribe
 	public void onGameStateChanged(
@@ -463,6 +865,12 @@ public class OraclePlugin extends Plugin
 		{
 			return;
 		}
+
+        observeSlice5PersistenceReadiness();
+
+        slice5HardcoreTransitionTracker.expire(
+                client.getTickCount()
+        );
 
 		advanceManualStashSync();
 		observeLootingBagWidgetIfOpened();
@@ -2072,6 +2480,11 @@ public class OraclePlugin extends Plugin
 	                return;
 	        }
 
+          if (event.getVarbitId() == Varbits.ACCOUNT_TYPE)
+          {
+                  observeSlice5AccountTypeTransition(event);
+          }
+
 	        int varpId = event.getVarpId();
 
 	        if (
@@ -2106,6 +2519,103 @@ public class OraclePlugin extends Plugin
 			);
 		}
   }
+
+    private void observeSlice5AccountTypeTransition(
+            VarbitChanged event
+    )
+    {
+        String account =
+                client.getLocalPlayer().getName();
+
+        if (
+                account == null ||
+                        account.isBlank()
+        )
+        {
+            slice5HardcoreTransitionTracker.clear();
+
+            log.warn(
+                    "Slice 5 HCIM status loss observed without account name"
+            );
+            return;
+        }
+
+        int newRawAccountType =
+                event.getValue();
+
+        String deathEventId =
+                slice5HardcoreTransitionTracker.observeAccountTypeChange(
+                        account,
+                        client.getTickCount(),
+                        newRawAccountType
+                );
+
+        if (deathEventId == null)
+        {
+            return;
+        }
+
+        Slice5PersistenceCoordinator coordinator =
+                slice5PersistenceCoordinator;
+
+        if (coordinator == null)
+        {
+            log.warn(
+                    "Slice 5 HCIM status loss observed without persistence coordinator"
+            );
+            return;
+        }
+
+        String observedAt =
+                Instant.now().toString();
+
+        String eventId =
+                UUID.randomUUID().toString();
+
+        String eventJson =
+                Slice5HardcoreStatusLossEvent.serialize(
+                        eventId,
+                        observedAt,
+                        clientSessionId,
+                        ++slice5EventSequence,
+                        deathEventId
+                );
+
+        coordinator.captureEvent(
+                account,
+                eventId,
+                "HARDCORE_STATUS_LOSS",
+                observedAt,
+                eventJson
+        ).whenComplete(
+                (result, error) ->
+                {
+                    if (error != null)
+                    {
+                        log.warn(
+                                "Failed to persist Slice 5 HCIM status-loss event",
+                                error
+                        );
+                        return;
+                    }
+
+                    clientThread.invoke(
+                            () ->
+                            {
+                                if (
+                                        slice5PersistenceCoordinator ==
+                                                coordinator
+                                )
+                                {
+                                    requestSnapshot(
+                                            "HARDCORE_STATUS_LOSS"
+                                    );
+                                }
+                            }
+                    );
+                }
+        );
+    }
 
 	private void observeLootingBagWidgetIfOpened()
 	{
@@ -2623,7 +3133,46 @@ public class OraclePlugin extends Plugin
 		}
 	}
 
-	private void sendSnapshot(
+	    private void observeSlice5PersistenceReadiness()
+    {
+        Slice5PersistenceCoordinator coordinator =
+                slice5PersistenceCoordinator;
+
+        if (coordinator == null)
+        {
+            return;
+        }
+
+        if (coordinator.isReady())
+        {
+            if (!slice5PersistenceReadySnapshotRequested)
+            {
+                slice5PersistenceReadySnapshotRequested = true;
+                requestSnapshot(
+                        "SLICE5_PERSISTENCE_READY"
+                );
+            }
+
+            return;
+        }
+
+        if (
+                coordinator.hasLoadFailure() &&
+                        !slice5PersistenceFailureLogged
+        )
+        {
+            slice5PersistenceFailureLogged = true;
+
+            log.warn(
+                    "Slice 5 persistent state failed to load; " +
+                            "schema-v2 snapshot uploads are paused " +
+                            "to preserve durable event history",
+                    coordinator.getLoadFailure()
+            );
+        }
+    }
+
+private void sendSnapshot(
 			String snapshotReason
 	)
 	{
@@ -2631,6 +3180,17 @@ public class OraclePlugin extends Plugin
 		{
 			return;
 		}
+
+        Slice5PersistenceCoordinator coordinator =
+                slice5PersistenceCoordinator;
+
+        if (
+                coordinator == null ||
+                        !coordinator.isReady()
+        )
+        {
+            return;
+        }
 
 		String account =
 				client.getLocalPlayer().getName();
@@ -2824,7 +3384,7 @@ public class OraclePlugin extends Plugin
 		        cachedStashState.toJson();
 
 		SnapshotLiveStateCollector.State liveState =
-                snapshotLiveStateCollector.collect();
+                snapshotLiveStateCollector.collect(clientTime);
 
                 String collectionLogJson =
                 snapshotCollectionLogSerializer.pages(
@@ -2881,6 +3441,18 @@ public class OraclePlugin extends Plugin
                 dizanasQuiverAmmoJson;
         envelopeParts.stashUnitsJson = stashUnitsJson;
         envelopeParts.equipmentJson = equipmentJson;
+        Slice5PersistenceCoordinator.SnapshotView slice5Snapshot =
+                coordinator.snapshotView(
+                        account,
+                        clientTime
+                );
+
+        envelopeParts.eventsJson =
+                slice5Snapshot.getEventsJson();
+        envelopeParts.slice5EventCoverageJson =
+                slice5Snapshot.getEventCoverageJson();
+        envelopeParts.slice5CoverageGapsJson =
+                slice5Snapshot.getCoverageGapsJson();
 
         String json =
                 SnapshotEnvelopeSerializer.serialize(
@@ -2899,12 +3471,80 @@ if (log.isDebugEnabled())
                 config.backendUrl(),
                 config.writeToken(),
                 json,
-                snapshotReason
+                snapshotReason,
+                (
+                        responseSnapshotReason,
+                        status,
+                        responseBody
+                ) ->
+                        handleSlice5SuccessfulResponse(
+                                account,
+                                responseBody,
+                                coordinator
+                        )
         );
 	}
 
 
 
+
+    private void handleSlice5SuccessfulResponse(
+            String account,
+            String responseBody,
+            Slice5PersistenceCoordinator coordinator
+    )
+    {
+        String acknowledgedAt =
+                Instant.now().toString();
+
+        Slice5AckProcessor.apply(
+                gson,
+                account,
+                responseBody,
+                coordinator,
+                acknowledgedAt
+        ).whenComplete(
+                (result, error) ->
+                {
+                    if (error != null)
+                    {
+                        log.warn(
+                                "Failed to fully apply Slice 5 ACK locally",
+                                error
+                        );
+                        return;
+                    }
+
+                    if (!result.isValidAck())
+                    {
+                        log.warn(
+                                "Ignoring malformed Slice 5 success ACK; pending evidence retained"
+                        );
+                        return;
+                    }
+
+                    if (!result.shouldRequestFollowUp())
+                    {
+                        return;
+                    }
+
+                    clientThread.invoke(
+                            () ->
+                            {
+                                if (
+                                        slice5PersistenceCoordinator ==
+                                                coordinator
+                                )
+                                {
+                                    requestSnapshot(
+                                            "SLICE5_ACK_APPLIED"
+                                    );
+                                }
+                            }
+                    );
+                }
+        );
+    }
 
 	private String stripTags(
 			String text

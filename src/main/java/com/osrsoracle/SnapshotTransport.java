@@ -39,6 +39,15 @@ String errorType
 );
 }
 
+interface SuccessfulResponseObserver
+{
+void onSuccessfulResponse(
+String snapshotReason,
+int status,
+String responseBody
+);
+}
+
 private static final class LoggingOutcomeObserver
 implements OutcomeObserver
 {
@@ -155,6 +164,23 @@ String json,
 String snapshotReason
 )
 {
+send(
+backendUrl,
+writeToken,
+json,
+snapshotReason,
+null
+);
+}
+
+void send(
+String backendUrl,
+String writeToken,
+String json,
+String snapshotReason,
+SuccessfulResponseObserver successfulResponseObserver
+)
+{
 try
 {
 Request request =
@@ -201,6 +227,27 @@ Response response
 {
 try (Response ignored = response)
 {
+String responseBody = null;
+
+if (response.isSuccessful())
+{
+try
+{
+responseBody =
+response.body() == null
+? null
+: response.body().string();
+}
+catch (IOException e)
+{
+log.warn(
+"Failed to read successful snapshot response body: reason={}",
+snapshotReason,
+e
+);
+}
+}
+
 outcomeObserver.onOutcome(
 response.isSuccessful()
 ? Outcome.SUCCESS
@@ -209,6 +256,18 @@ snapshotReason,
 response.code(),
 null
 );
+
+if (
+response.isSuccessful() &&
+successfulResponseObserver != null
+)
+{
+successfulResponseObserver.onSuccessfulResponse(
+snapshotReason,
+response.code(),
+responseBody
+);
+}
 }
 }
 }

@@ -4,7 +4,7 @@ import java.util.UUID;
 
 final class SnapshotEvidence
 {
-    private static final int SCHEMA_VERSION = 1;
+    private static final int SCHEMA_VERSION = 2;
     private static final String CLIENT_VERSION = "1.0";
     private static final String SOURCE = "RUNELITE_CLIENT";
 

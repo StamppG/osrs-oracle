@@ -9,6 +9,9 @@ String clientTime;
 String snapshotReason;
 String evidenceJson;
 SnapshotLiveStateCollector.State liveState;
+String eventsJson;
+String slice5EventCoverageJson;
+String slice5CoverageGapsJson;
 String diaryTaskStateJson;
 String globalResourceCapabilityStateJson;
 String persistentStorageLiveItemStateJson;
@@ -54,6 +57,7 @@ parts.liveState;
 return String.format(
 "{\"account\":\"%s\"," +
 "\"accountType\":%s," +
+"\"accountTypeResolution\":%s," +
 "\"membershipActive\":%s," +
 "\"membershipDaysRemaining\":%s," +
 "\"clientTime\":\"%s\"," +
@@ -102,10 +106,14 @@ return String.format(
 "\"barbarianKnapsack\":%s," +
 "\"dizanasQuiverAmmo\":%s," +
 "\"stashUnits\":%s," +
-"\"equipment\":%s}",
+"\"equipment\":%s," +
+"\"events\":%s," +
+"\"slice5EventCoverage\":%s," +
+"\"slice5CoverageGaps\":%s}",
 
 escapeJson(parts.account),
-liveState.accountTypeJson,
+liveState.accountTypeResolution.getOfficialAccountTypeJson(),
+liveState.accountTypeResolution.toJson(),
 liveState.membershipActiveJson,
 liveState.membershipDaysJson,
 escapeJson(parts.clientTime),
@@ -157,7 +165,10 @@ parts.huntsmansKitJson,
 parts.barbarianKnapsackJson,
 parts.dizanasQuiverAmmoJson,
 parts.stashUnitsJson,
-parts.equipmentJson
+parts.equipmentJson,
+parts.eventsJson,
+parts.slice5EventCoverageJson,
+parts.slice5CoverageGapsJson
 );
 }
 

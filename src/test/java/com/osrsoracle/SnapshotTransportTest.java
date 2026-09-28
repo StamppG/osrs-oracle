@@ -148,6 +148,79 @@ observer.errorType
 );
 }
 
+@Test
+public void reportsSuccessfulResponseBody()
+throws Exception
+{
+    RecordingOutcomeObserver outcomeObserver =
+            new RecordingOutcomeObserver();
+
+    CountDownLatch bodyLatch =
+            new CountDownLatch(1);
+
+    String[] observedBody =
+            new String[1];
+
+    OkHttpClient client =
+            new OkHttpClient.Builder()
+                    .addInterceptor(
+                            chain ->
+                                    new Response.Builder()
+                                            .request(chain.request())
+                                            .protocol(Protocol.HTTP_1_1)
+                                            .code(200)
+                                            .message("test")
+                                            .body(
+                                                    ResponseBody.create(
+                                                            null,
+                                                            "{\"success\":true}"
+                                                    )
+                                            )
+                                            .build()
+                    )
+                    .build();
+
+    SnapshotTransport transport =
+            new SnapshotTransport(
+                    client,
+                    outcomeObserver
+            );
+
+    transport.send(
+            "https://example.test",
+            "test-token",
+            "{\"snapshotReason\":\"HEARTBEAT\"}",
+            "HEARTBEAT",
+            (
+                    snapshotReason,
+                    status,
+                    responseBody
+            ) ->
+            {
+                observedBody[0] =
+                        responseBody;
+
+                bodyLatch.countDown();
+            }
+    );
+
+    assertTrue(
+            outcomeObserver.await()
+    );
+
+    assertTrue(
+            bodyLatch.await(
+                    2,
+                    TimeUnit.SECONDS
+            )
+    );
+
+    assertEquals(
+            "{\"success\":true}",
+            observedBody[0]
+    );
+}
+
 private static OkHttpClient clientReturning(
 int status
 )

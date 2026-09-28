@@ -11,9 +11,17 @@ public class SnapshotEnvelopeSerializerTest
 @Test
 public void preservesFrozenFullSnapshotWireContract()
 {
+AccountTypeResolution accountTypeResolution =
+AccountTypeResolution.resolve(
+1,
+12850,
+"2026-09-26T12:00:00Z"
+);
+
 SnapshotLiveStateCollector.State liveState =
 new SnapshotLiveStateCollector.State(
 "\"IRONMAN\"",
+accountTypeResolution,
 "true",
 "27",
 1,
@@ -69,6 +77,10 @@ parts.barbarianKnapsackJson = "{\"knapsack\":40}";
 parts.dizanasQuiverAmmoJson = "{\"quiver\":41}";
 parts.stashUnitsJson = "{\"stash\":42}";
 parts.equipmentJson = "{\"equipment\":43}";
+parts.eventsJson = "[]";
+parts.slice5EventCoverageJson =
+"{\"status\":\"COMPLETE\",\"observedAt\":\"2026-09-26T12:00:00Z\",\"gap\":null}";
+parts.slice5CoverageGapsJson = "[]";
 
 String json =
 SnapshotEnvelopeSerializer.serialize(parts);
@@ -76,6 +88,7 @@ SnapshotEnvelopeSerializer.serialize(parts);
 assertEquals(
 "{\"account\":\"Blue\\\"Helm\"," +
 "\"accountType\":\"IRONMAN\"," +
+"\"accountTypeResolution\":{\"status\":\"RESOLVED\",\"rawAccountType\":1,\"provisionalAccountType\":null,\"inTutorialIsland\":false,\"observedAt\":\"2026-09-26T12:00:00Z\"}," +
 "\"membershipActive\":true," +
 "\"membershipDaysRemaining\":27," +
 "\"clientTime\":\"2026-09-26T12:00:00Z\"," +
@@ -124,7 +137,10 @@ assertEquals(
 "\"barbarianKnapsack\":{\"knapsack\":40}," +
 "\"dizanasQuiverAmmo\":{\"quiver\":41}," +
 "\"stashUnits\":{\"stash\":42}," +
-"\"equipment\":{\"equipment\":43}}",
+"\"equipment\":{\"equipment\":43}," +
+"\"events\":[]," +
+"\"slice5EventCoverage\":{\"status\":\"COMPLETE\",\"observedAt\":\"2026-09-26T12:00:00Z\",\"gap\":null}," +
+"\"slice5CoverageGaps\":[]}",
 json
 );
 
